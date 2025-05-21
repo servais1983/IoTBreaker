@@ -1,0 +1,45 @@
+PCFET0NUWVBFIHZnaWV3IFsi" /> 
+   <svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+    <!-- Fond de cercle -->
+    <circle cx="250" cy="250" r="240" fill="#2c3e50" />
+    <circle cx="250" cy="250" r="220" fill="#34495e" />
+    
+    <!-- Antenne IoT -->
+    <circle cx="250" cy="135" r="25" fill="#e74c3c" />
+    <rect x="245" y="135" width="10" height="70" fill="#e74c3c" />
+    
+    <!-- Ondes radio (arcs autour de l'antenne) -->
+    <path d="M 180,135 A 70,70 0 0 1 320,135" stroke="#3498db" stroke-width="8" fill="none" />
+    <path d="M 160,135 A 90,90 0 0 1 340,135" stroke="#3498db" stroke-width="6" fill="none" />
+    <path d="M 140,135 A 110,110 0 0 1 360,135" stroke="#3498db" stroke-width="4" fill="none" />
+    
+    <!-- Icône de cadenas brisé -->
+    <rect x="205" y="205" width="90" height="70" rx="10" fill="#f39c12" />
+    <rect x="230" y="175" width="40" height="30" rx="5" fill="#f39c12" />
+    <path d="M 260,220 L 290,190" stroke="#e74c3c" stroke-width="10" />
+    <circle cx="290" cy="190" r="15" fill="#e74c3c" />
+    
+    <!-- Texte IoTBreaker -->
+    <text x="250" y="340" font-family="Arial, sans-serif" font-size="40" font-weight="bold" text-anchor="middle" fill="#ecf0f1">IoTBreaker</text>
+    
+    <!-- Sous-titre -->
+    <text x="250" y="370" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#bdc3c7">Pentest IoT pour Kali Linux</text>
+    
+    <!-- Circuit imprimé (lignes sur le fond) -->
+    <path d="M 50,250 H 150" stroke="#27ae60" stroke-width="3" fill="none" />
+    <path d="M 350,250 H 450" stroke="#27ae60" stroke-width="3" fill="none" />
+    <path d="M 50,250 V 350" stroke="#27ae60" stroke-width="3" fill="none" />
+    <path d="M 450,250 V 350" stroke="#27ae60" stroke-width="3" fill="none" />
+    <path d="M 50,350 H 150" stroke="#27ae60" stroke-width="3" fill="none" />
+    <path d="M 350,350 H 450" stroke="#27ae60" stroke-width="3" fill="none" />
+    
+    <!-- Points de circuit -->
+    <circle cx="50" cy="250" r="6" fill="#2ecc71" />
+    <circle cx="450" cy="250" r="6" fill="#2ecc71" />
+    <circle cx="50" cy="350" r="6" fill="#2ecc71" />
+    <circle cx="450" cy="350" r="6" fill="#2ecc71" />
+    <circle cx="150" cy="250" r="6" fill="#2ecc71" />
+    <circle cx="350" cy="250" r="6" fill="#2ecc71" />
+    <circle cx="150" cy="350" r="6" fill="#2ecc71" />
+    <circle cx="350" cy="350" r="6" fill="#2ecc71" />
+   </svg>
