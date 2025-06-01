@@ -8,7 +8,7 @@
 ![Kali Linux](https://img.shields.io/badge/Kali%20Linux-2023.1-red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **Outil de pentest IoT automatisé pour Kali Linux - Scannez, analysez et testez la sécurité des appareils IoT sur votre réseau**
+> **Outil d'audit de sécurité automatisé pour les dispositifs IoT - Scannez, analysez et testez la sécurité de votre réseau IoT**
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/servais1983/IoTBreaker/main/docs/logo.png" alt="IoTBreaker Logo" width="300" />
@@ -16,11 +16,11 @@
 
 ## 🔍 Aperçu
 
-**IoTBreaker** est un outil CLI offensif conçu pour :
+**IoTBreaker** est un outil CLI conçu pour :
 
-* Scanner, identifier et analyser les **appareils IoT sur un réseau local**
-* Vérifier les **protocoles vulnérables** (UPnP, MQTT, CoAP, Telnet, etc.)
-* Détecter les **firmwares faibles**, mots de passe par défaut, backdoors
+* Scanner et identifier les **appareils IoT sur un réseau local**
+* Analyser les **protocoles et services** (UPnP, MQTT, CoAP, Telnet, etc.)
+* Détecter les **vulnérabilités courantes** et configurations faibles
 * Automatiser les tests via des **scénarios YAML**
 
 ## 📦 Installation
@@ -30,67 +30,74 @@
 git clone https://github.com/servais1983/IoTBreaker.git
 cd IoTBreaker
 
+# Créer et activer l'environnement virtuel
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou
+.\venv\Scripts\activate  # Windows
+
 # Installer les dépendances
-chmod +x install.sh
-./install.sh
+pip install -r requirements.txt
 ```
 
-## 🛠️ Commandes disponibles
+## 🛠️ Utilisation
 
-| Commande | Description |
-| ----- | ----- |
-| `discover` | Découverte des dispositifs IoT via UPnP, SSDP, mDNS |
-| `analyze <IP>` | Scan et fingerprint des services courants (CoAP, MQTT, Telnet, HTTP) |
-| `check <IP>` | Recherche de vulnérabilités connues / ports sensibles |
-| `run <YAML>` | Exécution d'un scénario YAML automatisé |
-
-## 🚀 Exemples d'utilisation
-
-### Découvrir les appareils IoT sur le réseau
+### Exécuter un scénario d'audit
 
 ```bash
-python3 iotbreaker.py discover
+python iotbreaker.py scenarios/scan_reseau.yaml
 ```
 
-### Analyser un appareil spécifique
+### Options disponibles
 
 ```bash
-python3 iotbreaker.py analyze 192.168.1.50
+python iotbreaker.py -h
 ```
 
-### Vérifier les vulnérabilités d'un appareil
+* `scenario` : Chemin vers le fichier de scénario YAML à exécuter
+* `-v, --verbose` : Afficher plus de détails pendant l'exécution
 
-```bash
-python3 iotbreaker.py check 192.168.1.50
-```
+## 📋 Scénarios disponibles
 
-### Exécuter un scénario d'audit complet
+* `scan_reseau.yaml` : Découverte et analyse basique du réseau
+* `audit_device.yaml` : Audit complet d'un appareil spécifique
+* `check_vuln_web.yaml` : Vérification des vulnérabilités web
+* `pentest_mqtt.yaml` : Test de sécurité MQTT
+* `full_audit.yaml` : Audit complet multi-cibles
 
-```bash
-python3 iotbreaker.py run scripts/default_passwords.yaml
-```
+## 📝 Créer un scénario personnalisé
 
-## 📋 Scénarios personnalisés
-
-Vous pouvez créer des scénarios d'audit personnalisés en YAML :
+Exemple de scénario YAML :
 
 ```yaml
 name: Mon scénario personnalisé
 steps:
   - type: discover
   - type: analyze
-    target: 192.168.1.100
+    target: "ALL_DISCOVERED"
   - type: check
-    target: 192.168.1.100
+    target: "ALL_DISCOVERED"
 ```
+
+## 🔒 Sécurité
+
+* Validation des entrées utilisateur
+* Protection contre les attaques par injection
+* Vérification des chemins de fichiers
+* Gestion sécurisée des connexions réseau
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! N'hésitez pas à soumettre des pull requests pour améliorer l'outil.
+Les contributions sont les bienvenues ! N'hésitez pas à :
+1. Fork le projet
+2. Créer une branche pour votre fonctionnalité
+3. Commiter vos changements
+4. Pousser vers la branche
+5. Ouvrir une Pull Request
 
 ## 📄 Licence
 
-Ce projet est sous licence MIT - voir le fichier LICENSE pour plus de détails.
+Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ## ⚠️ Usage éthique
 

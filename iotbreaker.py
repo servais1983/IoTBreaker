@@ -1,90 +1,55 @@
 #!/usr/bin/env python3
 """
-IoTBreaker - Outil de pentest IoT pour Kali Linux
-https://github.com/servais1983/IoTBreaker
-
-Auteur: CyberS
-Version: 0.1.0
+IoTBreaker - Outil d'audit de sécurité pour les dispositifs IoT
 """
 
 import argparse
+import logging
 import sys
-from core import discover, analyze, check
-from core.utils import run_script_yaml, print_banner, get_version
+from core.utils import run_script_yaml
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+def print_banner():
+    """Affiche la bannière de l'outil"""
+    banner = """
+    ╔══════════════════════════════════════════════════════════╗
+    ║                                                          ║
+    ║  ██╗ ██████╗ ████████╗██████╗ ██████╗ ██████╗ ███████╗  ║
+    ║  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝  ║
+    ║  ██║██║   ██║   ██║   ██████╔╝██████╔╝██████╔╝█████╗    ║
+    ║  ██║██║   ██║   ██║   ██╔══██╗██╔══██╗██╔══██╗██╔══╝    ║
+    ║  ██║╚██████╔╝   ██║   ██║  ██║██║  ██║██║  ██║███████╗  ║
+    ║  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝  ║
+    ║                                                          ║
+    ║  Outil d'audit de sécurité pour les dispositifs IoT      ║
+    ║  Version 1.0.0                                           ║
+    ║                                                          ║
+    ╚══════════════════════════════════════════════════════════╝
+    """
+    print(banner)
 
 def main():
-    """Fonction principale du programme"""
+    """Fonction principale"""
+    parser = argparse.ArgumentParser(description="IoTBreaker - Outil d'audit de sécurité pour les dispositifs IoT")
+    parser.add_argument("scenario", help="Chemin vers le fichier de scénario YAML à exécuter")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Afficher plus de détails")
+    
+    args = parser.parse_args()
+    
     # Affichage de la bannière
     print_banner()
     
-    # Configuration du parser d'arguments
-    parser = argparse.ArgumentParser(
-        prog="iotbreaker", 
-        description="Pentest IoT CLI - Kali Linux",
-        epilog="Exemple: python3 iotbreaker.py discover"
-    )
-    
-    # Ajout des sous-commandes
-    subparsers = parser.add_subparsers(dest="command")
-    
-    # Commande discover
-    discover_cmd = subparsers.add_parser(
-        "discover", 
-        help="Découverte des dispositifs IoT via UPnP, SSDP, mDNS"
-    )
-    
-    # Commande analyze
-    analyze_cmd = subparsers.add_parser(
-        "analyze",
-        help="Analyse des services IoT sur une adresse IP"
-    )
-    analyze_cmd.add_argument(
-        "ip",
-        help="Adresse IP cible à analyser"
-    )
-    
-    # Commande check
-    check_cmd = subparsers.add_parser(
-        "check",
-        help="Vérification des vulnérabilités courantes sur une adresse IP"
-    )
-    check_cmd.add_argument(
-        "ip",
-        help="Adresse IP cible à vérifier"
-    )
-    
-    # Commande run
-    run_cmd = subparsers.add_parser(
-        "run",
-        help="Exécution d'un scénario YAML automatisé"
-    )
-    run_cmd.add_argument(
-        "file",
-        help="Chemin vers le fichier YAML du scénario"
-    )
-    
-    # Commande version
-    subparsers.add_parser(
-        "version",
-        help="Affiche la version actuelle"
-    )
-    
-    # Analyse des arguments
-    args = parser.parse_args()
-    
-    # Exécution de la commande appropriée
-    if args.command == "discover":
-        discover.run()
-    elif args.command == "analyze":
-        analyze.run(args.ip)
-    elif args.command == "check":
-        check.run(args.ip)
-    elif args.command == "run":
-        run_script_yaml(args.file)
-    elif args.command == "version":
-        print(f"IoTBreaker version {get_version()}")
-    else:
-        parser.print_help()
+    try:
+        # Exécution du scénario
+        run_script_yaml(args.scenario)
+        print("\n✓ Audit terminé avec succès!")
+    except Exception as e:
+        print(f"\n✗ Erreur lors de l'exécution: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
