@@ -10,9 +10,6 @@
 
 > **Outil d'audit de sécurité automatisé pour les dispositifs IoT - Scannez, analysez et testez la sécurité de votre réseau IoT**
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/servais1983/IoTBreaker/main/docs/logo.png" alt="IoTBreaker Logo" width="300" />
-</p>
 
 ## 🔍 Aperçu
 
