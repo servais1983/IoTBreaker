@@ -35,19 +35,6 @@ def run_script_yaml(path, ai_driven_mode=False):
     
     En mode 'ai_driven_mode', l'IA choisit les prochaines étapes
     en fonction des résultats obtenus.
-    
-    Le format attendu est:
-    ```yaml
-    name: Nom du scénario
-    description: Description du scénario (optionnel)
-    steps:
-      - type: discover|analyze|check
-        target: IP_CIBLE (optionnel pour discover)
-        description: Description de l'étape (optionnel)
-    config:
-      timeout: 5  # Timeout en secondes
-      verbose: true  # Mode verbeux
-      safe_mode: true  # Mode sans impact
     """
     
     # Configuration automatique de la clé API Shodan
@@ -233,13 +220,6 @@ def run_script_yaml(path, ai_driven_mode=False):
                         all_results.extend(results_from_check)
                 else:
                     print("[!] AVERTISSEMENT: Aucune cible spécifiée pour la vérification.")
-            elif step_type == "analyze_firmware":
-                firmware_file = step.get("file")
-                if not firmware_file:
-                    print("[!] AVERTISSEMENT: L'étape analyze_firmware nécessite un fichier 'file'.")
-                    continue
-                firmware_analyzer_module = get_module("firmware_analyzer")
-                firmware_analyzer_module.analyze_firmware(firmware_file)
             elif step_type == "shodan_lookup":
                 target = step.get("target")
                 if not target:
@@ -378,18 +358,18 @@ def get_version():
     return "3.0.0"
 
 def print_banner():
-    """Affiche la magnifique bannière IoTBreaker"""
+    """Affiche la magnifique bannière IoTBreaker corrigée"""
     version = get_version()
     banner = f"""
 🤖 IoTBreaker - Outil d'audit de sécurité conversationnel IoT
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║  ██╗ ██████╗ ████████╗██████╗ ██████╗ ██████╗ ███████╗  ║
-║  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝  ║
-║  ██║██║   ██║   ██║   ██████╔╝██████╔╝██████╔╝█████╗    ║
-║  ██║██║   ██║   ██║   ██╔══██╗██╔══██╗██╔══██╗██╔══╝    ║
-║  ██║╚██████╔╝   ██║   ██║  ██║██║  ██║██║  ██║███████╗  ║
-║  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝  ║
+║  ██╗ ██████╗ ████████╗    ██████╗ ██████╗ ███████╗      ║
+║  ██║██╔═══██╗╚══██╔══╝    ██╔══██╗██╔══██╗██╔════╝      ║
+║  ██║██║   ██║   ██║       ██████╔╝██████╔╝█████╗        ║
+║  ██║██║   ██║   ██║       ██╔══██╗██╔══██╗██╔══╝        ║
+║  ██║╚██████╔╝   ██║       ██████╔╝██║  ██║███████╗      ║
+║  ╚═╝ ╚═════╝    ╚═╝       ╚═════╝ ╚═╝  ╚═╝╚══════╝      ║
 ║                                                          ║
 ║  ██████╗ ██████╗ ███████╗ █████╗ ██╗  ██╗███████╗██████╗ ║
 ║  ██╔══██╗██╔══██╗██╔════╝██╔══██╗██║ ██╔╝██╔════╝██╔══██╗║
