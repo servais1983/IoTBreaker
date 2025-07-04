@@ -225,39 +225,11 @@ def run_script_yaml(path, ai_driven_mode=False):
                             print(f"[*] Vérification automatique de {device_ip}")
                             results_from_check = check_module.run(device_ip)
                             if results_from_check:
-                                # Exploit Telnet si demandé
-                                for vuln in results_from_check:
-                                    if should_exploit and vuln.get('severity') == 'CRITICAL' and vuln.get('module') == 'Telnet':
-                                        try:
-                                            creds = vuln['description'].split(': ')[-1].split(':')
-                                            user, passwd = creds[0], creds[1]
-                                            exploit_module = get_module("exploit")
-                                            exploit_module.exploit_telnet(device_ip, user, passwd)
-                                        except Exception:
-                                            print(f"[!] Impossible d'extraire les identifiants pour l'exploit Telnet.")
-                                    # Exploit MQTT si demandé
-                                    if should_exploit and 'MQTT' in vuln.get('module', '') and "abonnement à tous les topics" in vuln.get('description', ''):
-                                        exploit_module = get_module("exploit")
-                                        exploit_module.exploit_mqtt(device_ip)
                                 all_results.extend(results_from_check)
                 elif target and target != "auto_discovered":
                     check_module = get_module("check")
                     results_from_check = check_module.run(target)
                     if results_from_check:
-                        # Exploit Telnet si demandé
-                        for vuln in results_from_check:
-                            if should_exploit and vuln.get('severity') == 'CRITICAL' and vuln.get('module') == 'Telnet':
-                                try:
-                                    creds = vuln['description'].split(': ')[-1].split(':')
-                                    user, passwd = creds[0], creds[1]
-                                    exploit_module = get_module("exploit")
-                                    exploit_module.exploit_telnet(target, user, passwd)
-                                except Exception:
-                                    print(f"[!] Impossible d'extraire les identifiants pour l'exploit Telnet.")
-                            # Exploit MQTT si demandé
-                            if should_exploit and 'MQTT' in vuln.get('module', '') and "abonnement à tous les topics" in vuln.get('description', ''):
-                                exploit_module = get_module("exploit")
-                                exploit_module.exploit_mqtt(target)
                         all_results.extend(results_from_check)
                 else:
                     print("[!] AVERTISSEMENT: Aucune cible spécifiée pour la vérification.")
@@ -308,7 +280,6 @@ def run_script_yaml(path, ai_driven_mode=False):
         add_execution_summary("Scénario exécuté", data.get('name', 'Sans nom'))
         add_execution_summary("Nombre d'étapes", len(data.get("steps", [])))
         add_execution_summary("Vulnérabilités trouvées", len(all_results))
-        add_execution_summary("Mode exploitation", "Activé" if should_exploit else "Désactivé")
         add_execution_summary("Mode sécurisé", "Activé" if safe_mode else "Désactivé")
         add_execution_summary("Timeout configuré", f"{timeout} secondes")
     except ImportError:
@@ -319,15 +290,15 @@ def run_script_yaml(path, ai_driven_mode=False):
     reporting_module = get_module("reporting")
     reporting_module.generate_text_report(all_results, scenario_title)
     reporting_module.generate_html_report(all_results, scenario_title)
-    reporting_module.generate_pdf_report(all_results, scenario_title) # PDF !
+    reporting_module.generate_pdf_report(all_results, scenario_title)
 
 def initialize_audit():
     """Initialise un nouveau contexte d'audit."""
     return {
-        "devices": {}, # Dictionnaire pour stocker les détails par IP
+        "devices": {},
         "vulnerabilities": [],
         "history": [],
-        "devices_found": [] # Pour la rétro-compatibilité avec les prompts
+        "devices_found": []
     }
 
 def run_step(action_string, context):
@@ -371,64 +342,12 @@ def run_step(action_string, context):
         context['devices_found'] = list(context['devices'].keys())
         print(f"[+] {len(routers)} routeurs trouvés.")
 
-    elif command == "discover_bulbs":
-        print("\n[*] Étape : Recherche d'ampoules connectées...")
-        discovered_devices = get_module("discover").run()
-        bulbs = [d for d in discovered_devices if 'bulb' in d.get('type', '').lower() or 'light' in d.get('type', '').lower()]
-        for device in bulbs:
-            ip = device.get('ip')
-            if ip:
-                context['devices'][ip] = device
-        context['devices_found'] = list(context['devices'].keys())
-        print(f"[+] {len(bulbs)} ampoules connectées trouvées.")
-
-    elif command == "discover_thermostats":
-        print("\n[*] Étape : Recherche de thermostats intelligents...")
-        discovered_devices = get_module("discover").run()
-        thermostats = [d for d in discovered_devices if 'thermostat' in d.get('type', '').lower()]
-        for device in thermostats:
-            ip = device.get('ip')
-            if ip:
-                context['devices'][ip] = device
-        context['devices_found'] = list(context['devices'].keys())
-        print(f"[+] {len(thermostats)} thermostats trouvés.")
-
-    elif command == "scan_wifi":
-        print("\n[*] Étape : Scan des réseaux WiFi...")
-        # Simulation pour l'instant
-        print("[+] Scan WiFi - Fonctionnalité en développement")
-        context['history'].append("SCAN_WIFI")
-
-    elif command == "scan_bluetooth":
-        print("\n[*] Étape : Scan des appareils Bluetooth...")
-        # Simulation pour l'instant
-        print("[+] Scan Bluetooth - Fonctionnalité en développement")
-        context['history'].append("SCAN_BLUETOOTH")
-
     # COMMANDES D'ANALYSE
     elif command == "analyze":
         print(f"\n[*] Étape : Analyse des ports pour '{target}'...")
         targets_to_scan = context['devices'].keys() if target == 'all' else [target]
         for ip in targets_to_scan:
             get_module("analyze").run(ip)
-
-    elif command == "analyze_services":
-        print(f"\n[*] Étape : Analyse des services pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            get_module("analyze").run(ip)  # Utilise le module analyze existant
-
-    elif command == "fingerprint":
-        print(f"\n[*] Étape : Fingerprint des appareils '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            get_module("analyze").run(ip)  # Utilise le module analyze existant
-
-    elif command == "banner_grab":
-        print(f"\n[*] Étape : Extraction des bannières pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            get_module("analyze").run(ip)  # Utilise le module analyze existant
 
     # COMMANDES DE SÉCURITÉ
     elif command == "check":
@@ -438,137 +357,12 @@ def run_step(action_string, context):
             results = get_module("check").run(ip)
             if results:
                 context['vulnerabilities'].extend(results)
-
-    elif command == "check_defaults":
-        print(f"\n[*] Étape : Test des mots de passe par défaut pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            results = get_module("check").run(ip)
-            if results:
-                context['vulnerabilities'].extend(results)
-
-    elif command == "check_telnet":
-        print(f"\n[*] Étape : Vérification des ports Telnet pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            results = get_module("check").run(ip)
-            if results:
-                context['vulnerabilities'].extend(results)
-
-    elif command == "check_ssh":
-        print(f"\n[*] Étape : Vérification des ports SSH pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            results = get_module("check").run(ip)
-            if results:
-                context['vulnerabilities'].extend(results)
-
-    elif command == "check_web":
-        print(f"\n[*] Étape : Test des interfaces web pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            results = get_module("check").run(ip)
-            if results:
-                context['vulnerabilities'].extend(results)
-
-    elif command == "check_config":
-        print(f"\n[*] Étape : Vérification des configurations pour '{target}'...")
-        targets_to_scan = context['devices'].keys() if target == 'all' else [target]
-        for ip in targets_to_scan:
-            results = get_module("check").run(ip)
-            if results:
-                context['vulnerabilities'].extend(results)
+        print(f"[+] {len(context['vulnerabilities'])} vulnérabilité(s) trouvée(s)")
 
     # COMMANDES DE RAPPORT
     elif command == "report":
         print("\n[*] Étape : Génération du rapport complet...")
         get_module("reporting").generate_html_report(context['vulnerabilities'], "Audit Interactif")
-
-    elif command == "report_html":
-        print("\n[*] Étape : Génération du rapport HTML...")
-        get_module("reporting").generate_html_report(context['vulnerabilities'], "Audit Interactif")
-
-    elif command == "report_pdf":
-        print("\n[*] Étape : Génération du rapport PDF...")
-        get_module("reporting").generate_pdf_report(context['vulnerabilities'], "Audit Interactif")
-
-    elif command == "export":
-        print("\n[*] Étape : Export des données...")
-        # Simulation pour l'instant
-        print("[+] Export des données - Fonctionnalité en développement")
-        context['history'].append("EXPORT")
-
-    # COMMANDES SHODAN
-    elif command == "shodan_ip":
-        print("\n[*] Étape : Analyse de votre IP publique via Shodan...")
-        try:
-            get_module("shodan_analyzer").analyze_public_ip()
-        except:
-            print("[!] Module Shodan non disponible ou clé API manquante")
-
-    elif command == "shodan_similar":
-        print("\n[*] Étape : Recherche d'appareils similaires via Shodan...")
-        try:
-            get_module("shodan_analyzer").analyze_public_ip()
-        except:
-            print("[!] Module Shodan non disponible ou clé API manquante")
-
-    elif command == "shodan_visibility":
-        print("\n[*] Étape : Vérification de votre visibilité externe...")
-        try:
-            get_module("shodan_analyzer").analyze_public_ip()
-        except:
-            print("[!] Module Shodan non disponible ou clé API manquante")
-
-    # COMMANDES IA
-    elif command == "ai_analysis":
-        print("\n[*] Étape : Analyse IA des résultats...")
-        try:
-            from core.ai_analyzer import get_ai_analysis
-        except:
-            from core.ai_analyzer_simple import get_ai_analysis
-        analysis_prompt = f"""
-        Analyse les résultats de cet audit IoT :
-        - Appareils trouvés : {len(context['devices_found'])}
-        - Vulnérabilités : {len(context['vulnerabilities'])}
-        - Types d'appareils : {[d.get('type', 'Inconnu') for d in context['devices'].values()]}
-        
-        Donne une analyse détaillée des risques et des recommandations.
-        """
-        analysis = get_ai_analysis(analysis_prompt, max_length=512)
-        print(f"[🧠] Analyse IA : {analysis}")
-
-    elif command == "ai_recommendations":
-        print("\n[*] Étape : Recommandations IA...")
-        try:
-            from core.ai_analyzer import get_ai_analysis
-        except:
-            from core.ai_analyzer_simple import get_ai_analysis
-        rec_prompt = f"""
-        Basé sur cet audit IoT :
-        - Appareils : {len(context['devices_found'])}
-        - Vulnérabilités : {len(context['vulnerabilities'])}
-        
-        Donne 3-5 recommandations prioritaires pour sécuriser ce réseau IoT.
-        """
-        recommendations = get_ai_analysis(rec_prompt, max_length=512)
-        print(f"[🧠] Recommandations IA : {recommendations}")
-
-    elif command == "ai_risks":
-        print("\n[*] Étape : Évaluation des risques par IA...")
-        try:
-            from core.ai_analyzer import get_ai_analysis
-        except:
-            from core.ai_analyzer_simple import get_ai_analysis
-        risk_prompt = f"""
-        Évalue les risques de sécurité pour ce réseau IoT :
-        - Appareils : {len(context['devices_found'])}
-        - Vulnérabilités : {len(context['vulnerabilities'])}
-        
-        Donne une évaluation des risques (Faible/Moyen/Élevé) avec justification.
-        """
-        risk_assessment = get_ai_analysis(risk_prompt, max_length=512)
-        print(f"[🧠] Évaluation des risques : {risk_assessment}")
 
     elif command == "unknown":
         print(f"\n[❓] Je n'ai pas compris votre commande : '{action_string}'")
@@ -581,30 +375,37 @@ def run_step(action_string, context):
 
 def get_version():
     """Retourne la version actuelle de IoTBreaker"""
-    return "0.1.0"
+    return "3.0.0"
 
 def print_banner():
-    """Affiche la bannière IoTBreaker"""
+    """Affiche la magnifique bannière IoTBreaker"""
     version = get_version()
     banner = f"""
-    ╔══════════════════════════════════════════════════════╗
-    ║                                                      ║
-    ║     ██╗ ██████╗ ████████╗██████╗ ██████╗ ███████╗   ║
-    ║     ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔════╝   ║
-    ║     ██║██║   ██║   ██║   ██████╔╝██████╔╝█████╗     ║
-    ║     ██║██║   ██║   ██║   ██╔══██╗██╔══██╗██╔══╝     ║
-    ║     ██║╚██████╔╝   ██║   ██████╔╝██║  ██║███████╗   ║
-    ║     ╚═╝ ╚═════╝    ╚═╝   ╚═════╝ ╚═╝  ╚═╝╚══════╝   ║
-    ║                                                      ║
-    ║     ██████╗ ██████╗ ███████╗ █████╗ ██╗  ██╗        ║
-    ║     ██╔══██╗██╔══██╗██╔════╝██╔══██╗██║ ██╔╝        ║
-    ║     ██████╔╝██████╔╝█████╗  ███████║█████╔╝         ║
-    ║     ██╔══██╗██╔══██╗██╔══╝  ██╔══██║██╔═██╗         ║
-    ║     ██████╔╝██║  ██║███████╗██║  ██║██║  ██╗        ║
-    ║     ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝        ║
-    ║                                                      ║
-    ║     Pentest IoT pour Kali Linux - v{version:<10}     ║
-    ╚══════════════════════════════════════════════════════╝
+🤖 IoTBreaker - Outil d'audit de sécurité conversationnel IoT
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║  ██╗ ██████╗ ████████╗██████╗ ██████╗ ██████╗ ███████╗  ║
+║  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝  ║
+║  ██║██║   ██║   ██║   ██████╔╝██████╔╝██████╔╝█████╗    ║
+║  ██║██║   ██║   ██║   ██╔══██╗██╔══██╗██╔══██╗██╔══╝    ║
+║  ██║╚██████╔╝   ██║   ██║  ██║██║  ██║██║  ██║███████╗  ║
+║  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝  ║
+║                                                          ║
+║  ██████╗ ██████╗ ███████╗ █████╗ ██╗  ██╗███████╗██████╗ ║
+║  ██╔══██╗██╔══██╗██╔════╝██╔══██╗██║ ██╔╝██╔════╝██╔══██╗║
+║  ██████╔╝██████╔╝█████╗  ███████║█████╔╝ █████╗  ██████╔╝║
+║  ██╔══██╗██╔══██╗██╔══╝  ██╔══██║██╔═██╗ ██╔══╝  ██╔══██╗║
+║  ██████╔╝██║  ██║███████╗██║  ██║██║  ██╗███████╗██║  ██║║
+║  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝║
+║                                                          ║
+║  Outil d'audit de sécurité conversationnel IoT           ║
+║  Version {version:<10} - IA Conversationnelle             ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+    🔍 Découverte intelligente    🛡️  Tests de sécurité
+    🤖 IA conversationnelle       📊 Rapports automatiques
+    🌐 Intégration Shodan          🎯 Exploitation éthique
     """
     print(banner)
     print("    Développé par: CyberS - https://github.com/servais1983/IoTBreaker\n")
