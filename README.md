@@ -1,6 +1,6 @@
-# 📡 IoTBreaker CLI - Version Portable et Intelligente
+# 🤖 IoTBreaker - Outil d'Audit de Sécurité IoT Conversationnel
 
-> **Outil d'audit de sécurité automatisé pour les dispositifs IoT - Scannez, analysez et testez la sécurité de votre réseau IoT partout où vous allez !**
+> **Outil d'audit de sécurité conversationnel avec IA - Dialoguez avec votre partenaire d'audit intelligent qui apprend et s'améliore à chaque session !**
 
 ## 🌟 Nouvelles Fonctionnalités
 
@@ -23,8 +23,21 @@
 - **Analyse de votre IP publique** automatique
 - **Recherche géolocalisée** d'appareils IoT similaires
 - **Détection d'appareils vulnérables** dans votre région
-- **Intelligence artificielle** pour identifier les menaces
 - **Configuration sécurisée** via variables d'environnement
+
+### 🧠 **Intelligence Artificielle Conversationnelle**
+- **Modèle Phi-3 local** pour l'analyse intelligente
+- **Mode conversationnel interactif** - Dialoguez en langage naturel
+- **Apprentissage continu** - L'IA mémorise et s'améliore à chaque session
+- **Base de connaissances persistante** - Stockage JSON des apprentissages
+- **Interprétation intelligente** des commandes utilisateur
+- **Identification avancée** des types d'appareils
+- **Analyse des risques** automatique et contextuelle
+- **Résumés exécutifs** générés par IA
+- **Recommandations stratégiques** personnalisées
+- **Tests de vulnérabilités dynamiques** suggérés par l'IA
+- **Post-exploitation intelligente** avec commandes ciblées
+- **Analyse de ports contextuelle** basée sur les bannières
 
 ## 🔍 Aperçu
 
@@ -39,6 +52,30 @@
 * 🌍 **Intégrer Shodan** pour l'analyse externe
 
 ## 📦 Installation
+
+### 🐧 **Installation sur Kali Linux (Recommandé)**
+
+```bash
+# Mise à jour du système
+sudo apt update && sudo apt upgrade -y
+
+# Installation des dépendances système
+sudo apt install python3 python3-pip nmap net-tools git -y
+
+# Cloner le dépôt
+git clone https://github.com/servais1983/IoTBreaker.git
+cd IoTBreaker
+
+# Installer les dépendances Python
+pip3 install -r requirements.txt
+
+# Test de l'installation
+python3 iotbreaker.py
+
+# Test de compatibilité Kali Linux (sans scan réseau)
+python3 test_quick_kali.py
+
+### 🖥️ **Installation sur autres systèmes**
 
 ```bash
 # Cloner le dépôt
@@ -58,29 +95,60 @@ pip install -r requirements.txt
 # Copiez le fichier d'exemple et ajoutez votre clé API
 cp env.example .env
 # Éditez le fichier .env et ajoutez votre clé API Shodan
-```
+
+# Test de l'intégration IA (optionnel)
+python test_ai_integration.py
+
+# Test des fonctionnalités IA avancées (optionnel)
+python test_ai_advanced.py
+
+# Test du mode piloté par l'IA (optionnel)
+python test_ai_driven_mode.py
+
+# Test du mode conversationnel (optionnel)
+python test_conversational_mode.py
+
+# Test de compatibilité Kali Linux (sans scan réseau)
+python test_quick_kali.py
 
 ## 🚀 Utilisation
 
-### Audit Complet Portable (Recommandé)
+### 💬 Mode Conversationnel (Recommandé - Nouveau !)
+
+```bash
+# Lancez le mode conversationnel interactif
+python3 iotbreaker.py  # Sur Kali Linux
+# ou
+python iotbreaker.py   # Sur autres systèmes
+
+# L'IA vous accueille et vous pouvez dialoguer en langage naturel :
+# [Vous]> Lance un scan complet
+# [Vous]> Cherche les vulnérabilités sur tous les appareils
+# [Vous]> Analyse cette IP 192.168.1.1
+# [Vous]> Génère un rapport
+# [Vous]> status
+# [Vous]> help
+# [Vous]> exit
+```
+
+**Note importante :** IoTBreaker est conçu pour Kali Linux. Sur Windows, utilisez WSL ou une VM Kali pour une expérience optimale.
+
+### 📜 Mode Script Classique (Rétro-compatibilité)
 
 ```bash
 # Audit complet qui fonctionne partout
-python iotbreaker.py scripts/audit_iot_complet.yaml -v
-```
+python3 iotbreaker.py scripts/audit_iot_complet.yaml -v  # Sur Kali Linux
+# ou
+python iotbreaker.py scripts/audit_iot_complet.yaml -v   # Sur autres systèmes
 
-### Audit Rapide
-
-```bash
 # Audit rapide sans blocage
-python iotbreaker.py scripts/audit_iot_rapide.yaml -v
-```
+python3 iotbreaker.py scripts/audit_iot_rapide.yaml -v
 
-### Audit Portable Universel
-
-```bash
 # Audit portable universel
-python iotbreaker.py scripts/audit_portable_universel.yaml -v
+python3 iotbreaker.py scripts/audit_portable_universel.yaml -v
+
+# Mode piloté par l'IA
+python3 iotbreaker.py scripts/audit_ai_driven.yaml --ai-driven -v
 ```
 
 ### Options disponibles
@@ -98,6 +166,7 @@ python iotbreaker.py -h
 * `audit_iot_complet.yaml` : **Audit complet portable** avec Shodan intégré
 * `audit_iot_rapide.yaml` : **Audit rapide** sans blocage
 * `audit_portable_universel.yaml` : **Audit portable universel**
+* `audit_ai_driven.yaml` : **Audit piloté par l'IA** - L'IA décide des actions
 
 ### 🔧 **Scénarios Spécialisés**
 * `audit_avec_shodan.yaml` : Audit avec reconnaissance externe Shodan
@@ -118,6 +187,18 @@ python iotbreaker.py -h
 - **Validation des entrées** utilisateur
 - **Protection contre les attaques** par injection
 - **Gestion sécurisée** des connexions réseau
+
+### 🧠 **Fonctionnalités IA Conversationnelles**
+- **Mode conversationnel interactif** : Dialoguez avec l'IA en langage naturel
+- **Apprentissage continu** : L'IA mémorise et s'améliore à chaque session d'audit
+- **Base de connaissances persistante** : Stockage JSON des apprentissages entre les sessions
+- **Interprétation intelligente** : L'IA traduit vos commandes en actions techniques
+- **Synthèse automatique** : À la fin de chaque session, l'IA extrait des règles générales
+- **Tests de vulnérabilités dynamiques** : L'IA suggère des chemins d'administration spécifiques basés sur la bannière du serveur
+- **Post-exploitation intelligente** : Une fois l'accès obtenu, l'IA guide avec des commandes pertinentes pour identifier le système et rechercher des secrets
+- **Analyse contextuelle** : L'IA analyse les ports ouverts et les bannières pour identifier le type d'appareil et les risques associés
+- **Stratégies d'attaque adaptatives** : L'IA adapte les tests en fonction des services détectés
+- **Mode piloté par l'IA** : L'IA décide automatiquement des prochaines actions d'audit en fonction des résultats obtenus
 
 ### 📊 **Reporting Complet**
 - **Rapports HTML** interactifs
@@ -161,6 +242,31 @@ config:
   shodan_enabled: true
 ```
 
+## 🧪 Tests et Validation
+
+### Tests de Compatibilité
+```bash
+# Test rapide de compatibilité Kali Linux (sans scan réseau)
+python3 test_quick_kali.py
+
+# Test de l'intégration IA
+python3 test_ai_integration.py
+
+# Test du mode conversationnel
+python3 test_conversational_mode.py
+
+# Test des fonctionnalités avancées
+python3 test_ai_advanced.py
+```
+
+### Validation des Modules
+- ✅ **Module discover** : Découverte d'appareils
+- ✅ **Module analyze** : Analyse des vulnérabilités  
+- ✅ **Module check** : Vérifications de sécurité
+- ✅ **Module exploit** : Tests d'exploitation
+- ✅ **Module reporting** : Génération de rapports
+- ✅ **Module IA** : Intelligence artificielle conversationnelle
+
 ## 🔧 Configuration Avancée
 
 ### Options de Configuration
@@ -185,10 +291,17 @@ config:
 ## 🌍 Compatibilité
 
 ### ✅ **Systèmes Supportés**
-- **Windows** 10/11
-- **Linux** (Ubuntu, Debian, Kali)
-- **macOS** 10.15+
+- **Kali Linux** (Recommandé - Distribution de sécurité)
+- **Linux** (Ubuntu, Debian, autres distributions)
+- **macOS** 10.15+ (avec limitations)
 - **Raspberry Pi** (ARM)
+- **Windows** (via WSL ou VM Kali)
+
+### 🧠 **Exigences pour l'IA**
+- **RAM** : 4GB minimum (8GB recommandé)
+- **Espace disque** : 2GB pour le modèle Phi-3
+- **GPU** : Optionnel mais recommandé pour les performances
+- **Connexion internet** : Requise pour le téléchargement initial du modèle
 
 ### 📱 **Réseaux Supportés**
 - **WiFi** (2.4GHz et 5GHz)
@@ -224,6 +337,14 @@ Les contributions sont les bienvenues ! N'hésitez pas à :
 Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ## 🆕 Historique des Versions
+
+### v3.0.0 - Version Conversationnelle (Actuelle)
+- 💬 **Mode conversationnel interactif** - Dialoguez avec l'IA en langage naturel
+- 🧠 **Apprentissage continu** - L'IA mémorise et s'améliore à chaque session
+- 📚 **Base de connaissances persistante** - Stockage JSON des apprentissages
+- 🤖 **Interprétation intelligente** - L'IA traduit vos commandes en actions
+- 🔄 **Synthèse automatique** - Extraction de règles générales à la fin de chaque session
+- 📜 **Rétro-compatibilité** - Mode script classique toujours disponible
 
 ### v2.0.0 - Version Portable et Intelligente
 - ✨ **Mode portable universel** - Fonctionne partout

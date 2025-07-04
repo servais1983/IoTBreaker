@@ -1,0 +1,12 @@
+name: "Audit Dynamique Piloté par l'IA"
+description: "Un scénario où l'IA prend les décisions. Les étapes ci-dessous ne sont pas utilisées dans ce mode, seule la configuration l'est."
+
+# En mode --ai-driven, les étapes sont ignorées. L'IA décide.
+steps:
+  - type: discover
+    description: "Point de départ de l'IA"
+
+config:
+  timeout: 5
+  verbose: true
+  safe_mode: true 

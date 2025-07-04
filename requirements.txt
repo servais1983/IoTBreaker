@@ -3,3 +3,5 @@ paho-mqtt
 requests
 fpdf2
 shodan
+torch
+transformers

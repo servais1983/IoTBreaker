@@ -14,6 +14,8 @@ import json
 import requests
 from typing import List, Dict, Set, Optional
 from .utils import log_info, log_error
+# Ajout de l'importation pour l'analyseur IA
+from .ai_analyzer import get_ai_analysis
 import logging
 
 logger = logging.getLogger('iotbreaker')
@@ -399,11 +401,14 @@ def grab_banner(ip, port):
         return None
 
 def identify_device(banners, ip, open_ports):
-    """Tente d'identifier un appareil à partir de ses bannières et ports ouverts."""
+    """
+    Tente d'identifier un appareil en utilisant des fingerprints classiques
+    puis enrichit l'identification avec une analyse par l'IA.
+    """
     if not banners and not open_ports:
         return "Inconnu"
     
-    # Fingerprints basés sur les bannières
+    # Fingerprints basés sur les bannières (identification de base)
     fingerprints = {
         'lighttpd': 'Appareil embarqué (caméra/NAS)',
         'mini_httpd': 'Appareil embarqué (caméra/NAS)',
@@ -431,12 +436,16 @@ def identify_device(banners, ip, open_ports):
         'chromecast': 'Google Chromecast'
     }
     
+    # Identification de base par fingerprint classique
+    base_device_type = "Appareil IoT"
+    
     # Vérifier les bannières
     if banners:
         full_banner_text = " ".join(banners.values()).lower()
         for keyword, device_type in fingerprints.items():
             if keyword.lower() in full_banner_text:
-                return device_type
+                base_device_type = device_type
+                break
     
     # Vérifier les ports ouverts pour identifier le type d'appareil
     port_fingerprints = {
@@ -458,11 +467,37 @@ def identify_device(banners, ip, open_ports):
     open_ports_set = set(open_ports)
     for ports, device_type in port_fingerprints.items():
         if any(port in open_ports_set for port in ports):
-            return device_type
+            base_device_type = device_type
+            break
     
-    return "Appareil IoT"
+    # Enrichissement avec l'IA
+    print(f"  [🧠] Lancement de l'analyse par l'IA pour {ip}...")
+    
+    # Création d'un prompt détaillé pour l'IA
+    prompt = f"""
+    Analyse de l'appareil à l'adresse IP : {ip}
+    Ports ouverts : {open_ports}
+    Bannières des services :
+    {banners}
 
-def run() -> Optional[List[Dict]]:
+    En te basant sur ces informations :
+    1.  Quel est le type d'appareil le plus probable (ex: 'Caméra IP Hikvision', 'Routeur domestique TP-Link', 'Serveur NAS Synology') ?
+    2.  Quels sont les risques de sécurité les plus évidents associés à ce type d'appareil et à ces services ouverts ?
+    Sois concis.
+    """
+    
+    # Obtenir l'analyse de l'IA
+    ai_insight = get_ai_analysis(prompt, max_length=256)
+    
+    if ai_insight and "non disponible" not in ai_insight and "Erreur" not in ai_insight:
+        print(f"  [+] Analyse de l'IA : {ai_insight}")
+        # On peut choisir de retourner l'analyse complète ou juste le type d'appareil
+        # Pour cet exemple, on retourne l'analyse complète
+        return f"{base_device_type} (Analyse IA : {ai_insight})"
+        
+    return base_device_type
+
+def run(target_ip: str = None) -> Optional[List[Dict]]:
     """Fonction principale de découverte et de fingerprinting - Version portable universelle."""
     print("[*] Démarrage de la découverte avancée des dispositifs IoT...")
     

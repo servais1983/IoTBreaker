@@ -1,5 +1,7 @@
 import datetime
 from fpdf import FPDF
+# Ajout de l'importation pour l'analyseur IA
+from .ai_analyzer import get_ai_analysis
 
 # Variable globale pour stocker tous les détails des scans
 scan_details = {
@@ -285,6 +287,16 @@ def generate_html_report(results, scenario_name):
             """
         html += "</div>"
 
+    # Résumé par l'IA
+    ai_summary = generate_ai_executive_summary(results, scenario_name)
+    if ai_summary:
+        html += f"""
+            <div class="section">
+                <h2>🧠 Analyse et Recommandations de l'IA</h2>
+                <div class="summary-box" style="white-space: pre-wrap;">{ai_summary}</div>
+            </div>
+        """
+        
     # Vulnérabilités trouvées
     html += """
             <div class="section">
@@ -339,6 +351,28 @@ def generate_html_report(results, scenario_name):
         print(f"\n[+] Rapport HTML généré avec succès : {report_filename}")
     except Exception as e:
         print(f"[!] ERREUR: Impossible de générer le rapport HTML : {e}") 
+
+def generate_ai_executive_summary(results, scenario_name):
+    """Génère un résumé et des recommandations stratégiques par l'IA."""
+    print("\n[🧠] Génération du résumé exécutif par l'IA...")
+    
+    # Préparation d'un résumé des résultats pour le prompt
+    vuln_summary = ""
+    for vuln in results[:5]: # On ne montre que les 5 premières pour garder le prompt concis
+        vuln_summary += f"- IP: {vuln.get('ip')}, Sévérité: {vuln.get('severity')}, Description: {vuln.get('description')}\n"
+
+    prompt = f"""
+    Je suis un outil d'audit de sécurité nommé IoTBreaker. Je viens de terminer un audit avec le scénario '{scenario_name}'.
+    Voici un résumé des {len(results)} vulnérabilités trouvées :
+    {vuln_summary}
+
+    En te basant sur ces résultats :
+    1.  Rédige un résumé exécutif (2-3 phrases) pour un manager non technique, expliquant le niveau de risque global.
+    2.  Donne 3 recommandations stratégiques prioritaires pour corriger les failles les plus critiques.
+    Adopte un ton professionnel et clair.
+    """
+    
+    return get_ai_analysis(prompt, max_length=1024)
 
 class PDF(FPDF):
     def header(self):

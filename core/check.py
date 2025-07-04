@@ -3,6 +3,8 @@ import paho.mqtt.client as mqtt
 import requests
 import time
 import os
+# Ajout de l'importation pour l'analyseur IA
+from .ai_analyzer import get_ai_analysis
 
 # Remplacement de telnetlib pour Python 3.13+
 class TelnetClient:
@@ -242,20 +244,54 @@ def check_mqtt_weak_auth(ip):
         return None
 
 def check_http_exposed_interfaces(ip, path_file='wordlists/web_paths.txt'):
-    """Teste les interfaces web exposées en utilisant une liste de chemins."""
-    print("[+] Test des interfaces Web exposées...")
+    """
+    Teste les interfaces web exposées. Désormais, l'IA suggère des chemins
+    de vulnérabilités spécifiques basés sur la bannière du serveur.
+    """
+    print("[+] Test des interfaces Web exposées avec l'aide de l'IA...")
 
-    # Chargement de la liste des chemins
-    paths = load_credentials(path_file) # On peut réutiliser notre fonction `load_credentials`
+    # On essaie d'abord de récupérer la bannière du serveur HTTP
+    server_banner = ""
+    try:
+        response = requests.get(f"http://{ip}", timeout=2, verify=False)
+        server_banner = response.headers.get('Server', 'Inconnu')
+        if server_banner != 'Inconnu':
+            print(f"  [+] Bannière du serveur HTTP détectée : {server_banner}")
+    except requests.exceptions.RequestException:
+        pass # On continue même si on ne peut pas récupérer la bannière
+
+    # Création du prompt pour l'IA
+    prompt = f"""
+    Je scanne un appareil à l'adresse {ip}.
+    Le serveur web a retourné la bannière suivante : '{server_banner}'.
+
+    En te basant sur cette bannière :
+    1.  Liste 5 chemins d'URL (ex: /admin, /api/v1/users) qui sont connus pour être des interfaces d'administration ou qui pourraient contenir des vulnérabilités pour CE TYPE de serveur.
+    2.  Ne fournis que la liste, sans explication supplémentaire.
+    """
+
+    print("  [🧠] L'IA suggère des chemins de vulnérabilités spécifiques...")
+    ai_paths_str = get_ai_analysis(prompt, max_length=128)
+    
+    # On charge les chemins classiques et on y ajoute ceux de l'IA
+    classic_paths = load_credentials(path_file)
+    ai_paths = [path.strip() for path in ai_paths_str.split('\n') if path.strip()]
+    
+    if ai_paths:
+        print(f"  [+] Suggestions de l'IA : {ai_paths}")
+        # On ajoute les chemins suggérés par l'IA en priorité
+        paths = ai_paths + classic_paths
+    else:
+        paths = classic_paths
 
     if not paths:
         print("[!] AVERTISSEMENT: La liste de chemins web est vide ou non trouvée. Test annulé.")
         return None
 
     # Limitation du nombre de chemins à tester pour éviter les blocages
-    max_paths = 20  # On limite à 20 chemins au lieu de tous les 73
+    max_paths = 20
     if len(paths) > max_paths:
-        print(f"[*] Limitation à {max_paths} chemins web sur {len(paths)} disponibles pour éviter les blocages...")
+        print(f"[*] Limitation à {max_paths} chemins web sur {len(paths)} disponibles...")
         paths = paths[:max_paths]
 
     print(f"[*] Test de {len(paths)} chemins web sur HTTP et HTTPS...")
