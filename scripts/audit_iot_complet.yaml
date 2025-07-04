@@ -1,0 +1,75 @@
+name: "Audit IoT Complet - Découverte Intelligente et Portable"
+description: "Audit automatique complet incluant découverte locale, reconnaissance externe Shodan et détection IoT intelligente - Fonctionne partout !"
+
+steps:
+  # Étape 1: Découverte automatique portable de tous les appareils IoT intelligents
+  - type: discover
+    description: "Découverte portable de tous les appareils IoT (réseau, Bluetooth, WiFi, Google Nest, ampoules, etc.)"
+
+  # Étape 2: Analyse automatique de tous les appareils découverts
+  - type: analyze
+    target: auto_discovered
+    description: "Analyse complète de tous les appareils IoT intelligents découverts"
+
+  # Étape 3: Vérification des vulnérabilités sur tous les appareils
+  - type: check
+    target: auto_discovered
+    description: "Test de vulnérabilités sur tous les appareils IoT intelligents"
+
+  # Étape 4: Reconnaissance externe Shodan - Analyse de votre IP publique
+  - type: shodan_lookup
+    target: "auto_public_ip"
+    description: "Recherche d'informations Shodan pour votre IP publique actuelle"
+
+  # Étape 5: Recherche Shodan d'appareils IoT similaires dans votre région
+  - type: shodan_search
+    query: "product:router"
+    limit: 10
+    description: "Recherche de routeurs via Shodan"
+
+  # Étape 6: Recherche Shodan de caméras IoT dans votre région
+  - type: shodan_search
+    query: "product:camera"
+    limit: 10
+    description: "Recherche de caméras IoT via Shodan"
+
+  # Étape 7: Recherche Shodan d'appareils IoT vulnérables
+  - type: shodan_search
+    query: "port:23"
+    limit: 10
+    description: "Recherche d'appareils avec Telnet ouvert"
+
+  # Étape 8: Recherche Shodan d'appareils Google Nest
+  - type: shodan_search
+    query: "product:nest"
+    limit: 10
+    description: "Recherche d'appareils Google Nest via Shodan"
+
+  # Étape 9: Recherche Shodan d'ampoules connectées
+  - type: shodan_search
+    query: "product:hue"
+    limit: 10
+    description: "Recherche d'ampoules Philips Hue via Shodan"
+
+  # Étape 10: Recherche Shodan de thermostats intelligents
+  - type: shodan_search
+    query: "product:thermostat"
+    limit: 10
+    description: "Recherche de thermostats intelligents via Shodan"
+
+# Configuration complète et portable
+config:
+  timeout: 5         # Timeout équilibré pour tous les réseaux
+  verbose: true      # Mode verbeux pour voir tous les détails
+  safe_mode: true    # Mode sécurisé (pas de tests intrusifs)
+  network_scan: true # Activer le scan réseau complet
+  auto_discovery: true # Utiliser la découverte automatique
+  parallel_scan: true # Utiliser le scan parallèle optimisé
+  bluetooth_scan: true # Activer la découverte Bluetooth
+  wifi_scan: true    # Activer la découverte WiFi
+  smart_device_scan: true # Activer la découverte des appareils intelligents
+  zigbee_scan: true  # Activer la découverte Zigbee
+  shodan_enabled: true # Activer l'analyse Shodan
+  iot_intelligent_detection: true # Activer la détection IoT intelligente
+  portable_mode: true # Mode portable activé
+  auto_adapt: true   # Adaptation automatique au réseau 

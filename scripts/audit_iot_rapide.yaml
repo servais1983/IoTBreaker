@@ -1,0 +1,29 @@
+name: "Audit IoT Rapide"
+description: "Audit rapide des appareils IoT intelligents sans blocage"
+
+steps:
+  # Étape 1: Découverte rapide des appareils IoT
+  - type: discover
+    description: "Découverte rapide des appareils IoT intelligents"
+
+  # Étape 2: Analyse rapide des appareils découverts
+  - type: analyze
+    target: auto_discovered
+    description: "Analyse rapide des appareils découverts"
+
+  # Étape 3: Vérification rapide des vulnérabilités
+  - type: check
+    target: auto_discovered
+    description: "Test rapide de vulnérabilités"
+
+config:
+  timeout: 2         # Timeout très court pour éviter les blocages
+  verbose: true      # Mode verbeux
+  safe_mode: true    # Mode sécurisé
+  network_scan: true # Activer le scan réseau
+  auto_discovery: true # Utiliser la découverte automatique
+  parallel_scan: false # Désactiver le scan parallèle pour éviter les blocages
+  bluetooth_scan: false # Désactiver Bluetooth pour plus de rapidité
+  wifi_scan: true    # Garder la découverte WiFi
+  smart_device_scan: true # Activer la découverte des appareils intelligents
+  zigbee_scan: false # Désactiver Zigbee pour plus de rapidité 

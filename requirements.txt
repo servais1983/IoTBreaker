@@ -1,3 +1,5 @@
 pyyaml
 paho-mqtt
 requests
+fpdf2
+shodan

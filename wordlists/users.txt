@@ -1,0 +1,12 @@
+admin
+root
+user
+guest
+administrator
+operator
+service
+test
+default
+cisco
+telnet
+login 
