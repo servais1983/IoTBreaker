@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0d1117;
+  width:1600px;
+  height:900px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.window {
+  width:1540px;
+  height:860px;
+  background:#0d1117;
+  border:1.5px solid #30363d;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 0 60px rgba(31,111,235,0.12);
+  display:flex;
+  flex-direction:column;
+}
+.titlebar {
+  height:52px;
+  background:#161b22;
+  border-bottom:1px solid #21262d;
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  flex-shrink:0;
+}
+.dots { display:flex; gap:8px; }
+.dot { width:13px; height:13px; border-radius:50%; }
+.dot-r{background:#ff5f57} .dot-y{background:#febc2e} .dot-g{background:#28c840}
+.title-label {
+  margin-left:auto;
+  color:#484f58;
+  font-family:'Courier New',monospace;
+  font-size:13px;
+}
+.content {
+  flex:1;
+  padding:28px 44px 28px 44px;
+  font-family:'Courier New',Courier,monospace;
+  font-size:15px;
+  line-height:1.6;
+  color:#e6edf3;
+  overflow:hidden;
+}
+.ascii {
+  color:#1f6feb;
+  font-size:20px;
+  line-height:1.4;
+  white-space:pre;
+  font-family:'Courier New',Courier,monospace;
+  letter-spacing:0;
+  margin-bottom:6px;
+}
+.sub  { color:#8b949e; font-size:14px; margin-bottom:2px; }
+.sep  { color:#30363d; font-size:14px; margin-bottom:18px; }
+.line { white-space:pre; font-size:14.5px; line-height:1.85; }
+.i { color:#58a6ff }
+.s { color:#3fb950 }
+.c { color:#f85149; font-weight:bold }
+.h { color:#e3b341 }
+.m { color:#d29922 }
+.d { color:#8b949e }
+.w { color:#e6edf3 }
+.p { color:#484f58 }
+.b { font-weight:bold }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+    </div>
+    <span class="title-label">iotbreaker &mdash; bash &mdash; 160x40</span>
+  </div>
+  <div class="content">
+    <div class="ascii">  ___    _____   ____                  _
+ |_ _|  |_   _| | __ )  _ __  ___  __ _| | _____ _ __
+  | |     | |   |  _ \ | '__|/ _ \/ _` | |/ / _ \ '__|
+  | |     | |   | |_) || |  |  __/ (_| |   &lt;  __/ |
+ |___|    |_|   |____/ |_|   \___|\__,_|_|\_\___|_|</div>
+    <div class="sub">&nbsp; IoT Security Assessment Framework &nbsp; v4.0.0</div>
+    <div class="sub">&nbsp; Professional Penetration Testing Toolkit for IoT Devices</div>
+    <div class="sep">&nbsp; -------------------------------------------------------</div>
+
+    <div class="line"><span class="p">$</span> <span class="w b">python3 iotbreaker.py audit --network 192.168.1.0/24 --format html</span></div>
+    <div class="line"><span class="i">[*]</span> <span class="d">Session ID: 20260418_143201  |  Module: AUDIT  |  Threads: 100</span></div>
+    <div class="line"><span class="i">[*]</span> <span class="d">Phase 1/4 &mdash; Network Discovery (ARP + ICMP + TCP + mDNS + SSDP)</span></div>
+    <div class="line"><span class="s">[+]</span> <span class="s">Discovered 14 live hosts in 4.2s</span></div>
+    <div class="line"><span class="i">[*]</span> <span class="d">Phase 2/4 &mdash; Port Scan &amp; Device Fingerprinting</span></div>
+    <div class="line"><span class="s">[+]</span> <span class="s">192.168.1.100 &nbsp; Hikvision DS-2CD2143G2-I &nbsp; [80, 443, 554, 8000] &nbsp; Linux 3.4</span></div>
+    <div class="line"><span class="s">[+]</span> <span class="s">192.168.1.101 &nbsp; Dahua IPC-HDW2831T-AS &nbsp;&nbsp;&nbsp; [80, 443, 37777] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Linux 3.10</span></div>
+    <div class="line"><span class="i">[*]</span> <span class="d">Phase 3/4 &mdash; Vulnerability Assessment (Telnet / SSH / MQTT / HTTP / RTSP / SNMP)</span></div>
+    <div class="line c">[!] CRITICAL &nbsp; CVE-2021-36260 &nbsp; CVSS 9.8 &nbsp; Hikvision Unauthenticated RCE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.1.100:80</div>
+    <div class="line c">[!] CRITICAL &nbsp; CVE-2023-1389 &nbsp;&nbsp; CVSS 9.8 &nbsp; Telnet Default Credentials admin:admin &nbsp; 192.168.1.101:23</div>
+    <div class="line h">[!] HIGH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CVE-2017-7650 &nbsp;&nbsp; CVSS 7.5 &nbsp; MQTT Anonymous Authentication Bypass &nbsp;&nbsp;&nbsp; 192.168.1.100:1883</div>
+    <div class="line h">[!] HIGH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CVSS 7.5 &nbsp; RTSP Unauthenticated Stream Access &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.1.100:554</div>
+    <div class="line m">[!] MEDIUM &nbsp;&nbsp;&nbsp;&nbsp; CVE-1999-0517 &nbsp;&nbsp; CVSS 5.3 &nbsp; SNMP Default Community String 'public' &nbsp; 192.168.1.1:161</div>
+    <div class="line"><span class="i">[*]</span> <span class="d">Phase 4/4 &mdash; Generating Reports</span></div>
+    <div class="line"><span class="s">[+]</span> <span class="s">reports/iotbreaker_20260418_143201.html &nbsp; | &nbsp; reports/iotbreaker_20260418_143201.json</span></div>
+    <div class="line"><span class="d">[*]</span> <span class="d">Completed in 38.4s &nbsp; | &nbsp; 14 host(s) &nbsp; | &nbsp; 5 finding(s) &nbsp; | &nbsp; Risk Score: </span><span class="c b">8.6 / 10.0</span></div>
+  </div>
+</div>
+</body>
+</html>
