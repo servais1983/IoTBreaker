@@ -1,291 +1,425 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-IoTBreaker - Outil d'audit de sécurité conversationnel pour les dispositifs IoT
+IoTBreaker - Professional IoT Security Assessment Framework
+Version 4.0.0
+
+A comprehensive penetration testing framework for Internet of Things devices,
+designed for authorized security assessments and research.
+
+Usage:
+    python3 iotbreaker.py [module] [options]
+
+License: MIT
+Author: IoTBreaker Project
 """
 
 import argparse
-import logging
 import sys
-from core.utils import run_script_yaml, initialize_audit, run_step
-try:
-    from core.ai_analyzer import get_ai_analysis
-except:
-    from core.ai_analyzer_simple import get_ai_analysis
-from core.knowledge_base import load_knowledge, save_knowledge, get_recent_learnings
+import os
+import json
+import logging
+import time
+import signal
+from datetime import datetime
+from pathlib import Path
 
-# Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Ensure the project root is in the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-def print_banner():
-    """Affiche le magnifique logo ASCII IoTBreaker complet"""
-    banner = """
-🤖 IoTBreaker - Outil d'audit de sécurité conversationnel IoT
-╔══════════════════════════════════════════════════════════════════════╗
-║                                                                      ║
-║  ██╗ ██████╗ ████████╗    ██████╗ ██████╗ ███████╗ █████╗ ██╗  ██╗  ║
-║  ██║██╔═══██╗╚══██╔══╝    ██╔══██╗██╔══██╗██╔════╝██╔══██╗██║ ██╔╝  ║
-║  ██║██║   ██║   ██║       ██████╔╝██████╔╝█████╗  ███████║█████╔╝   ║
-║  ██║██║   ██║   ██║       ██╔══██╗██╔══██╗██╔══╝  ██╔══██║██╔═██╗   ║
-║  ██║╚██████╔╝   ██║       ██████╔╝██║  ██║███████╗██║  ██║██║  ██╗  ║
-║  ╚═╝ ╚═════╝    ╚═╝       ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝  ║
-║                                                                      ║
-║  ███████╗██████╗                                                     ║
-║  ██╔════╝██╔══██╗                                                    ║
-║  █████╗  ██████╔╝                                                    ║
-║  ██╔══╝  ██╔══██╗                                                    ║
-║  ███████╗██║  ██║                                                    ║
-║  ╚══════╝╚═╝  ╚═╝                                                    ║
-║                                                                      ║
-║  Outil d'audit de sécurité conversationnel IoT                       ║
-║  Version 3.0.0 - IA Conversationnelle                                ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
+from core.engine import Engine
+from core.config import Config
+from core.logger import setup_logger, get_logger
+from core.output import Console
 
-    🔍 Découverte intelligente    🛡️  Tests de sécurité
-    🤖 IA conversationnelle       📊 Rapports automatiques
-    🌐 Intégration Shodan          🎯 Exploitation éthique
-"""
-    print(banner)
+__version__ = "4.0.0"
+__author__  = "IoTBreaker Project"
+__license__ = "MIT"
 
-def interactive_mode():
-    """Mode conversationnel interactif avec l'IA."""
-    print_banner()
-    
-    # Initialisation de l'audit et de la mémoire de l'IA
-    audit_context = initialize_audit()
-    knowledge_base = load_knowledge()
+BANNER = r"""
+  ___    _____   ____                  _
+ |_ _|  |_   _| | __ )  _ __  ___  __ _| | _____ _ __
+  | |     | |   |  _ \ | '__|/ _ \/ _` | |/ / _ \ '__|
+  | |     | |   | |_) || |  |  __/ (_| |   <  __/ |
+ |___|    |_|   |____/ |_|   \___|\__,_|_|\_\___|_|
 
-    print("[+] Bienvenue dans le shell interactif d'IoTBreaker.")
-    print("    > L'IA est prête. Décrivez votre objectif (ex: 'Lance un scan complet', 'Cherche les caméras vulnérables').")
-    print("    > Tapez 'exit' pour quitter.")
-    print("    > Tapez 'help' pour voir les commandes disponibles.")
-    print("    > Tapez 'status' pour voir l'état actuel de l'audit.")
+  IoT Security Assessment Framework  v{version}
+  Professional Penetration Testing Toolkit for IoT Devices
+  -------------------------------------------------------
+  Use only on systems you own or have explicit permission to test.
+""".format(version=__version__)
 
-    while True:
-        try:
-            user_input = input("\n[Vous]> ").strip()
-            
-            if not user_input:
-                continue
-                
-            if user_input.lower() == 'exit':
-                # Avant de quitter, on demande à l'IA de synthétiser ce qu'elle a appris
-                print("[🧠] Synthèse des apprentissages de cette session...")
-                learning_prompt = f"""
-                Basé sur l'historique de l'audit : {audit_context['history']},
-                formule une ou deux règles générales que nous pourrions appliquer dans le futur.
-                Par exemple : 'Les appareils de type 'Routeur' sont souvent vulnérables au scan Telnet.'
-                Réponds uniquement avec les règles, une par ligne.
-                """
-                new_learnings = get_ai_analysis(learning_prompt, max_length=256)
-                if new_learnings and "non disponible" not in new_learnings:
-                    for learning in new_learnings.split('\n'):
-                        if learning.strip():
-                            knowledge_base['learnings'].append(learning.strip())
-                
-                save_knowledge(knowledge_base)
-                print("[+] Session terminée. Connaissances mises à jour.")
-                break
 
-            elif user_input.lower() == 'help':
-                print("\n[📖] COMMANDES DISPONIBLES")
-                print("=" * 50)
-                print("\n🔍 COMMANDES DE DÉCOUVERTE :")
-                print("  • 'Lance un scan complet' - Découverte + analyse + vérification")
-                print("  • 'Découvre les appareils' - Scan réseau pour trouver les IoT")
-                print("  • 'Trouve les caméras' - Recherche spécifique de caméras IP")
-                print("  • 'Cherche les routeurs' - Identification des routeurs")
-                print("  • 'Détecte les ampoules connectées' - Recherche d'ampoules IoT")
-                print("  • 'Trouve les thermostats' - Détection de thermostats intelligents")
-                print("  • 'Scan WiFi' - Découverte des réseaux WiFi")
-                print("  • 'Scan Bluetooth' - Recherche d'appareils Bluetooth")
-                
-                print("\n🔬 COMMANDES D'ANALYSE :")
-                print("  • 'Analyse tous les appareils' - Analyse complète des ports")
-                print("  • 'Analyse cette IP 192.168.1.1' - Analyse d'une IP spécifique")
-                print("  • 'Vérifie les ports ouverts' - Scan des ports sur les appareils")
-                print("  • 'Analyse les services' - Identification des services actifs")
-                print("  • 'Fingerprint les appareils' - Identification des types d'appareils")
-                print("  • 'Analyse les bannières' - Extraction des bannières serveur")
-                
-                print("\n🛡️ COMMANDES DE SÉCURITÉ :")
-                print("  • 'Cherche les vulnérabilités' - Test de vulnérabilités")
-                print("  • 'Teste les mots de passe par défaut' - Test d'authentification")
-                print("  • 'Vérifie les ports Telnet' - Test des ports Telnet")
-                print("  • 'Teste les ports SSH' - Vérification SSH")
-                print("  • 'Cherche les failles web' - Test des interfaces web")
-                print("  • 'Vérifie les configurations faibles' - Audit de configuration")
-                print("  • 'Teste les exploits connus' - Tests d'exploitation")
-                
-                print("\n📊 COMMANDES DE RAPPORT :")
-                print("  • 'Génère un rapport' - Création d'un rapport complet")
-                print("  • 'Crée un rapport HTML' - Rapport interactif HTML")
-                print("  • 'Génère un rapport PDF' - Rapport PDF détaillé")
-                print("  • 'Exporte les résultats' - Export des données")
-                print("  • 'Affiche les vulnérabilités' - Liste des vulnérabilités trouvées")
-                print("  • 'Résumé de l'audit' - Synthèse des résultats")
-                
-                print("\n🌐 COMMANDES SHODAN :")
-                print("  • 'Analyse mon IP publique' - Recherche Shodan de votre IP")
-                print("  • 'Cherche des appareils similaires' - Recherche géolocalisée")
-                print("  • 'Vérifie ma visibilité externe' - Audit de visibilité")
-                
-                print("\n🧠 COMMANDES IA :")
-                print("  • 'Que penses-tu de ces résultats ?' - Analyse IA des résultats")
-                print("  • 'Suggère les prochaines étapes' - Recommandations IA")
-                print("  • 'Analyse les risques' - Évaluation des risques par IA")
-                print("  • 'Quelles sont tes recommandations ?' - Conseils stratégiques")
-                
-                print("\n⚙️ COMMANDES SYSTÈME :")
-                print("  • 'status' - État actuel de l'audit")
-                print("  • 'clear' - Efface l'écran")
-                print("  • 'history' - Historique des commandes")
-                print("  • 'config' - Configuration actuelle")
-                print("  • 'exit' - Quitter le shell")
-                
-                print("\n💡 EXEMPLES DE COMMANDES NATURELLES :")
-                print("  • 'Salut, peux-tu scanner mon réseau ?'")
-                print("  • 'Je veux vérifier la sécurité de mes caméras'")
-                print("  • 'Y a-t-il des vulnérabilités sur mon routeur ?'")
-                print("  • 'Peux-tu analyser cette adresse IP ?'")
-                print("  • 'Génère un rapport de sécurité pour mon patron'")
-                print("  • 'Que recommandes-tu pour sécuriser mon IoT ?'")
-                continue
+def signal_handler(sig, frame):
+    """Handle graceful shutdown on SIGINT."""
+    Console.warning("\nInterrupt received. Shutting down gracefully...")
+    sys.exit(0)
 
-            elif user_input.lower() == 'status':
-                print(f"\n[📊] État de l'audit :")
-                print(f"  • Appareils découverts : {len(audit_context['devices_found'])}")
-                print(f"  • Vulnérabilités trouvées : {len(audit_context['vulnerabilities'])}")
-                print(f"  • Actions effectuées : {len(audit_context['history'])}")
-                print(f"  • Connaissances IA : {len(knowledge_base['learnings'])} règles apprises")
-                if audit_context['devices_found']:
-                    print(f"  • Appareils : {', '.join(audit_context['devices_found'])}")
-                if audit_context['vulnerabilities']:
-                    print(f"  • Vulnérabilités : {len([v for v in audit_context['vulnerabilities'] if v.get('severity') == 'High'])} critiques")
-                continue
 
-            elif user_input.lower() == 'clear':
-                import os
-                os.system('cls' if os.name == 'nt' else 'clear')
-                print_banner()
-                print("[+] Écran effacé. Continuez votre audit...")
-                continue
+def build_parser() -> argparse.ArgumentParser:
+    """Build the main argument parser with all subcommands."""
+    parser = argparse.ArgumentParser(
+        prog="iotbreaker",
+        description="IoTBreaker - Professional IoT Security Assessment Framework",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Full network discovery
+  python3 iotbreaker.py discover --network 192.168.1.0/24
 
-            elif user_input.lower() == 'history':
-                print(f"\n[📜] Historique des commandes ({len(audit_context['history'])} actions) :")
-                for i, action in enumerate(audit_context['history'], 1):
-                    print(f"  {i}. {action}")
-                continue
+  # Port scan a specific target
+  python3 iotbreaker.py scan --target 192.168.1.100 --ports 1-65535
 
-            elif user_input.lower() == 'config':
-                print(f"\n[⚙️] Configuration actuelle :")
-                print(f"  • Mode : Conversationnel avec IA")
-                print(f"  • Base de connaissances : {len(knowledge_base['learnings'])} règles")
-                print(f"  • Contexte d'audit : {len(audit_context['devices'])} appareils")
-                print(f"  • Historique : {len(audit_context['history'])} actions")
-                continue
+  # Device fingerprinting
+  python3 iotbreaker.py fingerprint --target 192.168.1.100
 
-            # L'IA interprète la commande de l'utilisateur
-            ai_prompt = f"""
-            Contexte de l'audit : {len(audit_context['devices_found'])} appareils trouvés.
-            Savoirs antérieurs : {get_recent_learnings(knowledge_base, 3)}
-            Commande de l'utilisateur : '{user_input}'
+  # Vulnerability assessment
+  python3 iotbreaker.py vuln --target 192.168.1.100 --all
 
-            Analyse cette commande et traduis-la en action(s) système. Choisis parmi :
+  # Credential brute-force
+  python3 iotbreaker.py brute --target 192.168.1.100 --protocol telnet
 
-            DÉCOUVERTE :
-            - DISCOVER (découverte générale)
-            - DISCOVER_CAMERAS (recherche caméras)
-            - DISCOVER_ROUTERS (recherche routeurs)
-            - DISCOVER_BULBS (recherche ampoules)
-            - DISCOVER_THERMOSTATS (recherche thermostats)
-            - SCAN_WIFI (scan WiFi)
-            - SCAN_BLUETOOTH (scan Bluetooth)
+  # Firmware analysis
+  python3 iotbreaker.py firmware --file /path/to/firmware.bin
 
-            ANALYSE :
-            - ANALYZE <IP|all> (analyse ports)
-            - ANALYZE_SERVICES <IP|all> (analyse services)
-            - FINGERPRINT <IP|all> (fingerprint)
-            - BANNER_GRAB <IP|all> (bannières)
+  # Shodan intelligence
+  python3 iotbreaker.py shodan --query "product:Hikvision"
 
-            SÉCURITÉ :
-            - CHECK <IP|all> (vulnérabilités générales)
-            - CHECK_DEFAULTS <IP|all> (mots de passe par défaut)
-            - CHECK_TELNET <IP|all> (ports Telnet)
-            - CHECK_SSH <IP|all> (ports SSH)
-            - CHECK_WEB <IP|all> (interfaces web)
-            - CHECK_CONFIG <IP|all> (configurations)
+  # Full audit pipeline
+  python3 iotbreaker.py audit --network 192.168.1.0/24 --output /tmp/report
 
-            RAPPORT :
-            - REPORT (rapport complet)
-            - REPORT_HTML (rapport HTML)
-            - REPORT_PDF (rapport PDF)
-            - EXPORT (export données)
+  # CVE lookup
+  python3 iotbreaker.py cve --vendor hikvision --product ipcam
+        """
+    )
 
-            SHODAN :
-            - SHODAN_IP (analyse IP publique)
-            - SHODAN_SIMILAR (recherche similaire)
-            - SHODAN_VISIBILITY (visibilité externe)
+    parser.add_argument(
+        "--version", "-V",
+        action="version",
+        version=f"IoTBreaker {__version__}"
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="count",
+        default=0,
+        help="Increase verbosity (-v, -vv, -vvv)"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        metavar="DIR",
+        default="./reports",
+        help="Output directory for reports (default: ./reports)"
+    )
+    parser.add_argument(
+        "--format", "-f",
+        choices=["json", "html", "pdf", "all"],
+        default="all",
+        help="Report output format (default: all)"
+    )
+    parser.add_argument(
+        "--timeout", "-t",
+        type=int,
+        default=5,
+        metavar="SECONDS",
+        help="Connection timeout in seconds (default: 5)"
+    )
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=100,
+        metavar="N",
+        help="Number of concurrent threads (default: 100)"
+    )
+    parser.add_argument(
+        "--no-banner",
+        action="store_true",
+        help="Suppress the banner"
+    )
+    parser.add_argument(
+        "--config",
+        metavar="FILE",
+        help="Path to configuration file"
+    )
 
-            IA :
-            - AI_ANALYSIS (analyse IA des résultats)
-            - AI_RECOMMENDATIONS (recommandations IA)
-            - AI_RISKS (évaluation risques IA)
+    subparsers = parser.add_subparsers(
+        dest="module",
+        title="Modules",
+        metavar="<module>"
+    )
 
-            Réponds uniquement avec la commande. Exemple : ANALYZE 192.168.1.1
-            Si la commande n'est pas claire, réponds : UNKNOWN
-            """
-            
-            print("[🧠] L'IA interprète votre commande...")
-            action = get_ai_analysis(ai_prompt, max_length=64)
-            print(f"  [+] Action déterminée par l'IA : {action}")
+    # ------------------------------------------------------------------ #
+    # MODULE: discover                                                     #
+    # ------------------------------------------------------------------ #
+    p_discover = subparsers.add_parser(
+        "discover",
+        help="Discover IoT devices on the network",
+        description="Network discovery using ARP, mDNS, UPnP, SSDP, and TCP probing."
+    )
+    p_discover.add_argument("--network", "-n", required=True, metavar="CIDR",
+        help="Target network in CIDR notation (e.g. 192.168.1.0/24)")
+    p_discover.add_argument("--method",
+        choices=["arp", "tcp", "upnp", "mdns", "all"],
+        default="all",
+        help="Discovery method (default: all)")
+    p_discover.add_argument("--exclude", metavar="IP[,IP]",
+        help="Comma-separated list of IPs to exclude")
 
-            # Exécution de l'action
-            if action:
-                run_step(action, audit_context)
-            else:
-                print("[!] L'IA n'a pas pu déterminer d'action claire.")
+    # ------------------------------------------------------------------ #
+    # MODULE: scan                                                         #
+    # ------------------------------------------------------------------ #
+    p_scan = subparsers.add_parser(
+        "scan",
+        help="Port scan and service detection",
+        description="High-performance TCP/UDP port scanner with service banner grabbing."
+    )
+    p_scan.add_argument("--target", "-T", required=True, metavar="IP/CIDR",
+        help="Target IP address or CIDR range")
+    p_scan.add_argument("--ports", "-p", default="iot-common",
+        metavar="RANGE",
+        help="Port range: 1-1024, 80,443,8080, 'iot-common', 'all' (default: iot-common)")
+    p_scan.add_argument("--udp", action="store_true",
+        help="Include UDP scan (requires root)")
+    p_scan.add_argument("--banner", action="store_true", default=True,
+        help="Grab service banners (default: enabled)")
+    p_scan.add_argument("--rate", type=int, default=500, metavar="PPS",
+        help="Packets per second rate limit (default: 500)")
 
-        except KeyboardInterrupt:
-            print("\n\n[!] Interruption détectée. Tapez 'exit' pour quitter proprement.")
-        except Exception as e:
-            print(f"[!] Erreur : {e}")
+    # ------------------------------------------------------------------ #
+    # MODULE: fingerprint                                                  #
+    # ------------------------------------------------------------------ #
+    p_fp = subparsers.add_parser(
+        "fingerprint",
+        help="Device fingerprinting and OS detection",
+        description="Identify device manufacturer, model, firmware version, and OS."
+    )
+    p_fp.add_argument("--target", "-T", required=True, metavar="IP",
+        help="Target IP address")
+    p_fp.add_argument("--deep", action="store_true",
+        help="Enable deep fingerprinting (slower, more accurate)")
+    p_fp.add_argument("--mac", metavar="MAC",
+        help="MAC address for OUI lookup (optional)")
 
-def script_mode():
-    """Mode script classique pour la rétro-compatibilité."""
-    parser = argparse.ArgumentParser(description="IoTBreaker - Outil d'audit de sécurité pour les dispositifs IoT")
-    parser.add_argument("scenario", help="Chemin vers le fichier de scénario YAML à exécuter")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Afficher plus de détails")
-    parser.add_argument("--ai-driven", action="store_true", help="Activer le mode d'audit piloté par l'IA")
-    
-    args = parser.parse_args()
-    
-    # Affichage de la bannière
-    print_banner()
-    
-    try:
-        # Exécution du scénario en passant le nouvel argument
-        run_script_yaml(args.scenario, args.ai_driven)
-        print("\n✓ Audit terminé avec succès!")
-    except Exception as e:
-        print(f"\n✗ Erreur lors de l'exécution: {str(e)}")
-        sys.exit(1)
+    # ------------------------------------------------------------------ #
+    # MODULE: vuln                                                         #
+    # ------------------------------------------------------------------ #
+    p_vuln = subparsers.add_parser(
+        "vuln",
+        help="Vulnerability scanning and CVE correlation",
+        description="Scan for known IoT vulnerabilities with CVSS scoring and CVE correlation."
+    )
+    p_vuln.add_argument("--target", "-T", required=True, metavar="IP",
+        help="Target IP address")
+    p_vuln.add_argument("--all", "-a", action="store_true",
+        help="Run all vulnerability checks")
+    p_vuln.add_argument("--telnet", action="store_true",
+        help="Test Telnet default credentials")
+    p_vuln.add_argument("--ssh", action="store_true",
+        help="Test SSH weak configurations")
+    p_vuln.add_argument("--mqtt", action="store_true",
+        help="Test MQTT authentication bypass")
+    p_vuln.add_argument("--http", action="store_true",
+        help="Test HTTP/HTTPS web interfaces")
+    p_vuln.add_argument("--rtsp", action="store_true",
+        help="Test RTSP stream authentication")
+    p_vuln.add_argument("--coap", action="store_true",
+        help="Test CoAP protocol vulnerabilities")
+    p_vuln.add_argument("--upnp", action="store_true",
+        help="Test UPnP misconfigurations")
+    p_vuln.add_argument("--snmp", action="store_true",
+        help="Test SNMP community strings")
+    p_vuln.add_argument("--ftp", action="store_true",
+        help="Test FTP anonymous access")
+    p_vuln.add_argument("--cve", action="store_true",
+        help="Correlate findings with CVE database")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: brute                                                        #
+    # ------------------------------------------------------------------ #
+    p_brute = subparsers.add_parser(
+        "brute",
+        help="Credential brute-force attacks",
+        description="Multi-protocol credential brute-force with smart wordlist management."
+    )
+    p_brute.add_argument("--target", "-T", required=True, metavar="IP",
+        help="Target IP address")
+    p_brute.add_argument("--protocol", required=True,
+        choices=["telnet", "ssh", "ftp", "http", "rtsp", "snmp", "mqtt", "all"],
+        help="Protocol to attack")
+    p_brute.add_argument("--port", "-p", type=int, metavar="PORT",
+        help="Custom port (overrides default)")
+    p_brute.add_argument("--users", "-u", metavar="FILE",
+        help="Custom username wordlist file")
+    p_brute.add_argument("--passwords", "-P", metavar="FILE",
+        help="Custom password wordlist file")
+    p_brute.add_argument("--combo", metavar="FILE",
+        help="Combo list file (user:pass format)")
+    p_brute.add_argument("--stop-on-success", action="store_true", default=True,
+        help="Stop after first successful credential (default: enabled)")
+    p_brute.add_argument("--delay", type=float, default=0.0, metavar="SECONDS",
+        help="Delay between attempts in seconds")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: exploit                                                      #
+    # ------------------------------------------------------------------ #
+    p_exploit = subparsers.add_parser(
+        "exploit",
+        help="Exploit known IoT vulnerabilities",
+        description="Execute proof-of-concept exploits for known IoT CVEs."
+    )
+    p_exploit.add_argument("--target", "-T", required=True, metavar="IP",
+        help="Target IP address")
+    p_exploit.add_argument("--cve", metavar="CVE-ID",
+        help="Specific CVE to exploit (e.g. CVE-2021-36260)")
+    p_exploit.add_argument("--list", action="store_true",
+        help="List all available exploits")
+    p_exploit.add_argument("--check", action="store_true",
+        help="Check if target is vulnerable without exploiting")
+    p_exploit.add_argument("--payload", metavar="CMD",
+        help="Command payload for RCE exploits")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: firmware                                                     #
+    # ------------------------------------------------------------------ #
+    p_fw = subparsers.add_parser(
+        "firmware",
+        help="Firmware extraction and analysis",
+        description="Analyze firmware images for hardcoded credentials, backdoors, and vulnerabilities."
+    )
+    p_fw.add_argument("--file", "-F", required=True, metavar="FILE",
+        help="Path to firmware binary file")
+    p_fw.add_argument("--extract", action="store_true", default=True,
+        help="Extract filesystem from firmware (default: enabled)")
+    p_fw.add_argument("--secrets", action="store_true", default=True,
+        help="Search for hardcoded credentials and secrets")
+    p_fw.add_argument("--crypto", action="store_true",
+        help="Analyze cryptographic implementations")
+    p_fw.add_argument("--strings", action="store_true",
+        help="Extract and analyze interesting strings")
+    p_fw.add_argument("--entropy", action="store_true",
+        help="Compute entropy analysis (detect encryption/compression)")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: shodan                                                       #
+    # ------------------------------------------------------------------ #
+    p_shodan = subparsers.add_parser(
+        "shodan",
+        help="Shodan intelligence gathering",
+        description="Query Shodan for IoT device intelligence and exposure analysis."
+    )
+    p_shodan.add_argument("--query", "-q", metavar="QUERY",
+        help="Shodan search query")
+    p_shodan.add_argument("--ip", metavar="IP",
+        help="Look up a specific IP address")
+    p_shodan.add_argument("--limit", type=int, default=50, metavar="N",
+        help="Maximum number of results (default: 50)")
+    p_shodan.add_argument("--facets", metavar="FACETS",
+        help="Comma-separated facets for aggregation (e.g. country,org)")
+    p_shodan.add_argument("--api-key", metavar="KEY",
+        help="Shodan API key (overrides env variable)")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: cve                                                          #
+    # ------------------------------------------------------------------ #
+    p_cve = subparsers.add_parser(
+        "cve",
+        help="CVE database lookup and correlation",
+        description="Search the NVD/CVE database for IoT-related vulnerabilities."
+    )
+    p_cve.add_argument("--vendor", metavar="VENDOR",
+        help="Vendor name (e.g. hikvision, dahua, dlink)")
+    p_cve.add_argument("--product", metavar="PRODUCT",
+        help="Product name")
+    p_cve.add_argument("--cve-id", metavar="CVE-ID",
+        help="Specific CVE identifier")
+    p_cve.add_argument("--severity",
+        choices=["critical", "high", "medium", "low"],
+        help="Filter by minimum severity")
+    p_cve.add_argument("--year", type=int, metavar="YEAR",
+        help="Filter by publication year")
+
+    # ------------------------------------------------------------------ #
+    # MODULE: audit                                                        #
+    # ------------------------------------------------------------------ #
+    p_audit = subparsers.add_parser(
+        "audit",
+        help="Full automated security audit pipeline",
+        description="Run the complete IoT security assessment pipeline: discover, scan, fingerprint, vuln, report."
+    )
+    p_audit.add_argument("--network", "-n", required=True, metavar="CIDR",
+        help="Target network in CIDR notation")
+    p_audit.add_argument("--target", "-T", metavar="IP",
+        help="Single target IP (skips discovery)")
+    p_audit.add_argument("--profile",
+        choices=["quick", "standard", "deep", "stealth"],
+        default="standard",
+        help="Audit profile (default: standard)")
+    p_audit.add_argument("--exclude", metavar="IP[,IP]",
+        help="Comma-separated IPs to exclude")
+    p_audit.add_argument("--no-exploit", action="store_true",
+        help="Skip exploitation phase")
+    p_audit.add_argument("--shodan", action="store_true",
+        help="Include Shodan intelligence gathering")
+
+    return parser
+
 
 def main():
-    """Fonction principale - Détecte automatiquement le mode à utiliser."""
-    if len(sys.argv) > 1 and sys.argv[1] not in ['-h', '--help', '-v', '--verbose', '--ai-driven']:
-        # Mode script classique
-        script_mode()
-    else:
-        # Mode conversationnel interactif
-        try:
-            interactive_mode()
-        except (EOFError, KeyboardInterrupt):
-            print("\n[!] Session interrompue. Au revoir !")
-            sys.exit(0)
+    """Main entry point for IoTBreaker."""
+    signal.signal(signal.SIGINT, signal_handler)
+
+    parser = build_parser()
+    args = parser.parse_args()
+
+    # Display banner
+    if not getattr(args, "no_banner", False):
+        print(BANNER)
+
+    # Setup logging
+    log_level = logging.WARNING
+    if args.verbose == 1:
+        log_level = logging.INFO
+    elif args.verbose >= 2:
+        log_level = logging.DEBUG
+
+    setup_logger(log_level)
+    logger = get_logger(__name__)
+
+    # Load configuration
+    config = Config()
+    if args.config:
+        config.load_file(args.config)
+
+    # Apply CLI overrides
+    config.set("timeout", args.timeout)
+    config.set("threads", args.threads)
+    config.set("output_dir", args.output)
+    config.set("report_format", args.format)
+    config.set("verbose", args.verbose)
+
+    # Ensure output directory exists
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+
+    # No module selected
+    if not args.module:
+        parser.print_help()
+        sys.exit(0)
+
+    # Initialize the engine
+    engine = Engine(config)
+
+    # Dispatch to the appropriate module
+    try:
+        exit_code = engine.run(args)
+    except KeyboardInterrupt:
+        Console.warning("Operation interrupted by user.")
+        sys.exit(130)
+    except Exception as e:
+        logger.exception("Unhandled exception in engine")
+        Console.error(f"Fatal error: {e}")
+        sys.exit(1)
+
+    sys.exit(exit_code)
+
 
 if __name__ == "__main__":
     main()

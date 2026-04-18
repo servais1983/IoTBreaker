@@ -1,7 +1,28 @@
-pyyaml
-paho-mqtt
-requests
-fpdf2
-shodan
-torch
-transformers
+# IoTBreaker v4.0.0 - Python Dependencies
+# ==========================================
+# Install: pip install -r requirements.txt
+# Python: 3.8+
+
+# ---- Core networking ----
+requests>=2.31.0
+pyyaml>=6.0.1
+paho-mqtt>=1.6.1
+scapy>=2.5.0
+paramiko>=3.4.0
+
+# ---- Vulnerability intelligence ----
+shodan>=1.31.0
+
+# ---- Reporting ----
+fpdf2>=2.7.9
+weasyprint>=60.0
+
+# ---- Firmware analysis ----
+python-magic>=0.4.27
+
+# ---- Output formatting ----
+tabulate>=0.9.0
+colorama>=0.4.6
+
+# ---- Optional: impacket (SMB/NTLM brute-force) ----
+# impacket>=0.11.0
