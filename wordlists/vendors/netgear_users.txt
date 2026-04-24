@@ -1,0 +1,7 @@
+# NETGEAR router / switch default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+root
+user
+netgear

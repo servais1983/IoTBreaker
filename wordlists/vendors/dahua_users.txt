@@ -1,0 +1,8 @@
+# Dahua IP camera / NVR default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+888888
+default
+user
+operator

@@ -22,6 +22,17 @@ from .output import Console
 
 logger = get_logger(__name__)
 
+# S9: Per-module thread caps to avoid DoS on embedded devices
+MODULE_THREAD_CAPS: Dict[str, int] = {
+    "discover":    50,
+    "scan":        10,
+    "fingerprint": 5,
+    "vuln":        5,
+    "brute":       3,
+    "exploit":     3,
+    "audit":       10,
+}
+
 
 class Engine:
     """
@@ -40,10 +51,64 @@ class Engine:
         self.findings: List[Dict] = []
         self.devices: List[Dict] = []
         self.start_time = time.time()
+        # S3: Scope networks — populated from --scope-file or --engagement
+        self.scope_networks: List[ipaddress.IPv4Network] = []
+        # G1: Engagement context (set by CLI after __init__)
+        self.engagement = None
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
     # ------------------------------------------------------------------ #
+
+    def load_scope(self, scope_file: str):
+        """
+        S3: Load authorized target networks from a scope file.
+
+        The file should contain one CIDR per line (# comments supported).
+        Every target passed to a module handler will be validated against
+        this list. Targets outside scope are silently skipped with a warning.
+        """
+        p = Path(scope_file)
+        if not p.exists():
+            Console.error(f"Scope file not found: {scope_file}")
+            return
+        self.scope_networks = []
+        with open(p, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                try:
+                    self.scope_networks.append(ipaddress.ip_network(line, strict=False))
+                except ValueError:
+                    Console.warning(f"Scope file: invalid CIDR '{line}' — skipping")
+        Console.info(f"Scope loaded: {len(self.scope_networks)} network(s) authorized")
+
+    def _is_in_scope(self, target: str) -> bool:
+        """
+        S3: Return True if target is within an authorized scope network.
+        If no scope is defined, all targets are permitted (with a warning).
+        """
+        if not self.scope_networks:
+            return True
+        try:
+            addr = ipaddress.ip_address(target)
+        except ValueError:
+            return True  # hostnames pass through
+        for net in self.scope_networks:
+            if addr in net:
+                return True
+        return False
+
+    def _apply_module_thread_cap(self, module: str):
+        """
+        S9: Temporarily lower the configured thread count to the per-module
+        cap to prevent DoS on embedded devices.
+        """
+        cap = MODULE_THREAD_CAPS.get(module)
+        if cap is not None:
+            configured = self.config.get("threads", 100)
+            self.config.set("threads", min(configured, cap))
 
     def run(self, args) -> int:
         """
@@ -73,6 +138,9 @@ class Engine:
         if not handler:
             Console.error(f"Unknown module: {module}")
             return 1
+
+        # S9: Apply per-module thread cap
+        self._apply_module_thread_cap(module)
 
         logger.info(f"Starting module: {module} | session: {self.session_id}")
         Console.info(f"Session ID: {self.session_id}")
@@ -127,6 +195,11 @@ class Engine:
         return bool(self.devices)
 
     def _run_scan(self, args) -> bool:
+        # S3: Scope check
+        target = args.target
+        if not self._is_in_scope(target):
+            Console.error(f"[SCOPE] {target} is outside the authorized scope. Skipping.")
+            return False
         from modules.scanner.portscan import PortScanner
         scanner = PortScanner(self.config)
         ports = self._parse_ports(args.ports)
@@ -157,6 +230,10 @@ class Engine:
         return bool(results)
 
     def _run_fingerprint(self, args) -> bool:
+        # S3: Scope check
+        if not self._is_in_scope(args.target):
+            Console.error(f"[SCOPE] {args.target} is outside the authorized scope. Skipping.")
+            return False
         from modules.fingerprint.fingerprint import FingerprintModule
         fp = FingerprintModule(self.config)
         result = fp.run(
@@ -186,6 +263,10 @@ class Engine:
         return bool(result)
 
     def _run_vuln(self, args) -> bool:
+        # S3: Scope check
+        if not self._is_in_scope(args.target):
+            Console.error(f"[SCOPE] {args.target} is outside the authorized scope. Skipping.")
+            return False
         from modules.vulnscan.vulnscan import VulnScanner
         scanner = VulnScanner(self.config)
 
@@ -225,6 +306,10 @@ class Engine:
         return bool(self.findings)
 
     def _run_brute(self, args) -> bool:
+        # S3: Scope check
+        if not self._is_in_scope(args.target):
+            Console.error(f"[SCOPE] {args.target} is outside the authorized scope. Skipping.")
+            return False
         from modules.bruteforce.bruteforce import BruteForceModule
         bf = BruteForceModule(self.config)
         results = bf.run(
@@ -238,11 +323,13 @@ class Engine:
             delay=getattr(args, "delay", 0.0)
         )
         Console.section("BRUTE-FORCE RESULTS")
+        reveal = self.config.get("reveal_creds", False)
         if results:
             for r in results:
+                masked_pw = r['password'] if reveal else '*' * len(r['password'])
                 Console.finding(
                     "CRITICAL",
-                    f"Valid credentials found: {r['username']}:{r['password']}",
+                    f"Valid credentials found: {r['username']}:{masked_pw}",
                     f"Protocol: {r['protocol']} | Port: {r['port']}"
                 )
             self.findings.extend([{
@@ -258,6 +345,10 @@ class Engine:
         return bool(results)
 
     def _run_exploit(self, args) -> bool:
+        # S3: Scope check
+        if getattr(args, "target", None) and not self._is_in_scope(args.target):
+            Console.error(f"[SCOPE] {args.target} is outside the authorized scope. Skipping.")
+            return False
         from modules.exploit.exploit import ExploitModule
         ex = ExploitModule(self.config)
 
@@ -476,6 +567,20 @@ class Engine:
     def _generate_reports(self, args):
         """Generate all requested report formats."""
         from modules.reporting.report import ReportGenerator
+        from core.compliance import enrich_finding_compliance
+        # G10: Enrich all findings with compliance framework mappings
+        for finding in self.findings:
+            enrich_finding_compliance(finding)
+
+        # G2: Persist session to SQLite database
+        db_path = self.config.get("db_path", "")
+        if db_path:
+            try:
+                from core.database import Database
+                db = Database(db_path)
+                db.save_session(self)
+            except Exception as exc:
+                logger.warning(f"Database persistence failed: {exc}")
         fmt = getattr(args, "format", "all")
         out_dir = Path(self.config.get("output_dir", "./reports"))
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -498,6 +603,51 @@ class Engine:
         if fmt in ("pdf", "all"):
             path = rg.generate_pdf(out_dir)
             Console.success(f"PDF report: {path}")
+
+        # G4: Delta report if --compare baseline provided
+        compare_path = getattr(args, "compare", None)
+        if compare_path:
+            try:
+                delta_path = rg.generate_delta(compare_path, out_dir)
+                Console.success(f"Delta report: {delta_path}")
+            except FileNotFoundError as e:
+                Console.error(str(e))
+
+        # 4.4: SIEM / SOAR exports (opt-in via --siem flags)
+        if self.findings:
+            siem_cfg = self.config.get("siem", {})
+            if isinstance(siem_cfg, dict) and siem_cfg:
+                try:
+                    from modules.reporting.siem import SiemExporter
+                    exporter = SiemExporter(self.config)
+
+                    hec_url   = siem_cfg.get("splunk_hec_url", "")
+                    hec_token = siem_cfg.get("splunk_hec_token", "")
+                    if hec_url and hec_token:
+                        exporter.export_splunk_hec(
+                            self.findings, self.session_id, hec_url, hec_token,
+                            index=siem_cfg.get("splunk_index", "iotbreaker"),
+                        )
+                        Console.success("Splunk HEC export complete.")
+
+                    if siem_cfg.get("cef_host"):
+                        exporter.export_cef(
+                            self.findings, self.session_id,
+                            syslog_host=siem_cfg.get("cef_host", "127.0.0.1"),
+                            syslog_port=int(siem_cfg.get("cef_port", 514)),
+                            use_tcp=siem_cfg.get("cef_tcp", False),
+                        )
+                        Console.success("CEF syslog export complete.")
+
+                    if siem_cfg.get("ecs_enabled", False):
+                        ecs_path = exporter.export_ecs(
+                            self.findings, self.session_id,
+                            output_dir=str(out_dir),
+                        )
+                        Console.success(f"ECS NDJSON export: {ecs_path}")
+
+                except Exception as exc:
+                    logger.warning(f"SIEM export failed: {exc}")
 
     # ------------------------------------------------------------------ #
     # Helpers                                                              #

@@ -1,0 +1,36 @@
+# MQTT topic patterns commonly found on IoT devices
+# For use with topic enumeration / subscribe-all probes
+#
+# Wildcards:  #  = all topics (if broker allows)
+#            +  = single level wildcard
+#
+$SYS/#
+#
++/+
+home/#
+iot/#
+sensor/#
+device/#
+gateway/#
+telemetry/#
+status/#
+control/#
+command/#
+data/#
++/temperature
++/humidity
++/motion
++/door
++/lock
++/light
++/camera
++/alarm
++/status
++/config
++/update
++/ota
++/firmware
++/heartbeat
++/ping
++/log
++/debug

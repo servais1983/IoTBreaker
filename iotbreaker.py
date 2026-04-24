@@ -140,6 +140,69 @@ Examples:
         metavar="FILE",
         help="Path to configuration file"
     )
+    # S3: Scope enforcement
+    parser.add_argument(
+        "--scope-file",
+        metavar="FILE",
+        help="Path to authorized CIDR scope file (one network per line). "
+             "Targets outside scope are blocked."
+    )
+    # S1: SSL override
+    parser.add_argument(
+        "--no-verify",
+        action="store_true",
+        help="Disable SSL certificate verification (not recommended; use only against self-signed certs)"
+    )
+    # S4: Credential display
+    parser.add_argument(
+        "--reveal-creds",
+        action="store_true",
+        help="Show full plaintext passwords in output (default: masked)"
+    )
+    # S8: Fast brute-force mode
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Remove brute-force delay (may trigger lockouts on production devices)"
+    )
+    # G4: Compare against a baseline session report
+    parser.add_argument(
+        "--compare",
+        metavar="JSON_FILE",
+        help="Path to a previous session JSON report to generate a differential delta report"
+    )
+    # G1: Engagement YAML context
+    parser.add_argument(
+        "--engagement",
+        metavar="FILE",
+        help="Path to engagement YAML file (client, operator, SoW, dates, authorized CIDRs)"
+    )
+    # G2: SQLite persistence
+    parser.add_argument(
+        "--db",
+        metavar="FILE",
+        default="",
+        help="Path to SQLite database for session persistence (e.g. ./reports/iotbreaker.db)"
+    )
+    # G3: REST API server mode
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Start the IoTBreaker REST API server instead of running a module"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8888,
+        metavar="PORT",
+        help="Port for --serve mode (default: 8888)"
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        metavar="ADDR",
+        help="Bind address for --serve mode (default: 127.0.0.1)"
+    )
 
     subparsers = parser.add_subparsers(
         dest="module",
@@ -396,16 +459,78 @@ def main():
     config.set("report_format", args.format)
     config.set("verbose", args.verbose)
 
+    # G2: SQLite database path
+    if getattr(args, "db", ""):
+        config.set("db_path", args.db)
+
+    # S1: --no-verify override (prints a visible warning)
+    if getattr(args, "no_verify", False):
+        config.set("verify_ssl", False)
+        Console.warning("SSL verification DISABLED. Connections may be intercepted.")
+
+    # S4: --reveal-creds
+    if getattr(args, "reveal_creds", False):
+        config.set("reveal_creds", True)
+
+    # S8: --fast removes brute-force delay
+    if getattr(args, "fast", False):
+        config.set("brute_delay", 0.0)
+        Console.warning("Fast mode: brute-force delay removed. Risk of account lockout.")
+
     # Ensure output directory exists
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
-    # No module selected
+    # No module selected — check for --serve first
+    if getattr(args, "serve", False):
+        from core.api import serve
+        Console.info(f"Starting REST API on {args.host}:{args.port} ...")
+        serve(config, host=args.host, port=args.port, db_path=getattr(args, "db", ""))
+        sys.exit(0)
+
     if not args.module:
         parser.print_help()
         sys.exit(0)
 
     # Initialize the engine
     engine = Engine(config)
+
+    # S10: Reconfigure logger to always write audit log to output directory
+    from core.logger import _LOGGER_INITIALIZED
+    import core.logger as _core_logger
+    _core_logger._LOGGER_INITIALIZED = False
+    setup_logger(
+        level=log_level,
+        output_dir=args.output,
+        session_id=engine.session_id,
+    )
+    _core_logger._LOGGER_INITIALIZED = True
+
+    # S3: Load scope file if provided
+    if getattr(args, "scope_file", None):
+        engine.load_scope(args.scope_file)
+
+    # G1: Load engagement file (overrides --scope-file scope if CIDRs present)
+    if getattr(args, "engagement", None):
+        from core.engagement import load_engagement
+        try:
+            eng = load_engagement(args.engagement)
+            if not eng.validate_window():
+                Console.error("Engagement window invalid. Aborting.")
+                sys.exit(1)
+            # Engagement CIDRs take precedence over --scope-file
+            if eng.authorized_cidrs:
+                engine.scope_networks = list(eng.authorized_cidrs)
+            engine.engagement = eng
+            # Store engagement summary in config so reporters can embed it
+            config.set("engagement_meta", eng.summary())
+        except (FileNotFoundError, ValueError) as e:
+            Console.error(f"Engagement error: {e}")
+            sys.exit(1)
+    elif not getattr(args, "scope_file", None):
+        Console.warning(
+            "No --scope-file or --engagement provided. All targets are permitted. "
+            "Ensure you have written authorization for every target."
+        )
 
     # Dispatch to the appropriate module
     try:

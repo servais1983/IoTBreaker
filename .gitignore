@@ -51,6 +51,11 @@ report-*.txt
 *.log
 logs/
 
+# Pytest / test artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Fichiers temporaires
 *.tmp
 *.temp

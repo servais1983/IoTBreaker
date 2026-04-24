@@ -1,0 +1,16 @@
+# IoTBreaker Engagement File Template
+# Usage: python iotbreaker.py audit --network 192.168.1.0/24 --engagement engagement.yml.example
+
+client:        "Acme Corporation"
+operator:      "john.doe"
+sow_reference: "SOW-2026-042"
+notes:         "Q1 2026 IoT infrastructure assessment — production network excluded"
+
+# Authorized testing window
+start_date:    "2026-04-24"
+end_date:      "2026-04-30"
+
+# One CIDR per line — only these targets will be scanned/exploited
+authorized_cidrs:
+  - 192.168.10.0/24
+  - 10.0.20.0/28

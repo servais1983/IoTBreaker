@@ -1,0 +1,6 @@
+# TP-Link router / AP / switch default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+root
+user

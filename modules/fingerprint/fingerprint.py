@@ -25,12 +25,11 @@ from typing import Dict, Optional, List, Tuple
 from core.logger import get_logger
 from core.output import Console
 from core.config import Config
+from core.http import make_session
 
 logger = get_logger(__name__)
 
-# Disable SSL warnings for IoT devices with self-signed certificates
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # TTL-based OS fingerprinting
@@ -140,7 +139,13 @@ class FingerprintModule:
     def __init__(self, config: Config):
         self.config = config
         self.timeout = config.get("timeout", 5)
-        self.verify_ssl = config.get("verify_ssl", False)
+        # S1: Default verify_ssl to True; match global config
+        self.verify_ssl = config.get("verify_ssl", True)
+        # Suppress urllib3 warnings only when SSL verification is explicitly disabled
+        if not self.verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        # G7: Shared session with proxy + SSL settings applied globally
+        self.session = make_session(config)
 
     def run(
         self,
@@ -243,7 +248,7 @@ class FingerprintModule:
         for scheme, port in [("http", 80), ("https", 443), ("http", 8080), ("http", 8000)]:
             try:
                 url = f"{scheme}://{target}:{port}/"
-                resp = requests.get(
+                resp = self.session.get(
                     url,
                     timeout=self.timeout,
                     verify=self.verify_ssl,
@@ -394,7 +399,7 @@ class FingerprintModule:
                 for path in ["/rootDesc.xml", "/description.xml", "/device.xml", "/upnp/desc.xml"]:
                     try:
                         url = f"http://{target}:{port}{path}"
-                        resp = requests.get(url, timeout=3, verify=False)
+                        resp = self.session.get(url, timeout=3, verify=self.verify_ssl)
                         if resp.status_code == 200 and "xml" in resp.headers.get("Content-Type", "").lower():
                             return self._parse_upnp_xml(resp.text)
                     except Exception:

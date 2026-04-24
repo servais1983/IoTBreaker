@@ -1,0 +1,7 @@
+# Ubiquiti (UniFi / AirOS) default credentials
+# Sources: vendor documentation, public security advisories
+ubnt
+admin
+Admin
+root
+operator

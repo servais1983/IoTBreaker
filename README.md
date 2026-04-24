@@ -13,11 +13,12 @@
 [![Version](https://img.shields.io/badge/version-4.0.0-1f6feb?style=flat-square&logo=github)](https://github.com/servais1983/IoTBreaker/releases)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey?style=flat-square)](https://github.com/servais1983/IoTBreaker)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)](https://github.com/servais1983/IoTBreaker)
 [![CVEs](https://img.shields.io/badge/CVE%20exploits-9-red?style=flat-square)](https://github.com/servais1983/IoTBreaker)
 [![Protocols](https://img.shields.io/badge/protocols-10%2B-orange?style=flat-square)](https://github.com/servais1983/IoTBreaker)
 [![CVSS](https://img.shields.io/badge/scoring-CVSS%20v3.1-blueviolet?style=flat-square)](https://www.first.org/cvss/)
 [![NVD](https://img.shields.io/badge/CVE%20lookup-NVD%20API%20v2.0-blue?style=flat-square)](https://nvd.nist.gov/)
+[![Tests](https://img.shields.io/badge/tests-191%20passed-brightgreen?style=flat-square)](tests/)
 
 </div>
 
@@ -54,7 +55,12 @@ IoTBreaker/
 │   ├── engine.py               # Central orchestration engine
 │   ├── config.py               # YAML + environment variable configuration
 │   ├── logger.py               # Structured logging (DEBUG/INFO/WARNING/ERROR)
-│   └── output.py               # Console rendering (tables, banners, progress)
+│   ├── output.py               # Console rendering (tables, banners, progress)
+│   ├── http.py                 # Shared requests.Session factory (SSL, proxy)
+│   ├── compliance.py           # OWASP / NIST / IEC 62443 compliance mapping
+│   ├── engagement.py           # Engagement metadata & time-window enforcement
+│   ├── database.py             # SQLite session/finding persistence
+│   └── api.py                  # REST API server (Flask, /api/v1/)
 ├── modules/
 │   ├── discovery/
 │   │   ├── discovery.py        # ARP, ICMP, TCP, mDNS, SSDP/UPnP sweep
@@ -67,17 +73,24 @@ IoTBreaker/
 │   │   ├── vulnscan.py         # Protocol vulnerability checks (CVSS v3.1)
 │   │   └── cve_lookup.py       # NIST NVD API v2.0 CVE search
 │   ├── bruteforce/
-│   │   └── bruteforce.py       # Multi-protocol credential brute-force
+│   │   └── bruteforce.py       # Multi-protocol credential brute-force + backoff
 │   ├── exploit/
-│   │   └── exploit.py          # CVE proof-of-concept exploit modules
+│   │   └── exploit.py          # CVE exploit modules + plugin loader
 │   ├── firmware/
 │   │   └── firmware.py         # Static firmware analysis
 │   └── reporting/
-│       └── report.py           # HTML / JSON / PDF / TXT report generation
+│       ├── report.py           # HTML / JSON / PDF / TXT / delta report generation
+│       └── siem.py             # SIEM export (Splunk HEC, CEF syslog, ECS NDJSON)
+├── plugins/
+│   └── exploits/               # Drop-in CVE exploit plugins (README inside)
 ├── wordlists/
-│   ├── users.txt               # IoT-specific username list
-│   ├── passwords.txt           # IoT default credential list
-│   └── web_paths.txt           # Common IoT web interface paths
+│   ├── users.txt               # Generic IoT usernames
+│   ├── passwords.txt           # IoT default passwords
+│   ├── web_paths.txt           # Common IoT web paths
+│   ├── vendors/                # Per-vendor credential lists (Hikvision, Dahua, …)
+│   └── protocols/              # Protocol-specific lists (SNMP communities, MQTT topics)
+├── tests/                      # pytest test suite (191 tests, all passing)
+├── docs/                       # Architecture, roadmap, security audit, production gaps
 └── reports/                    # Output directory for generated reports
 ```
 
@@ -342,6 +355,97 @@ IoTBreaker is a professional security tool intended for use by:
 
 ---
 
+## What's New in v4.0.0
+
+### Security Hardening (OWASP Top 10)
+- **Payload validation** — all exploit payloads are validated against a safe-characters regex before execution (prevents injection attacks)
+- **Path traversal protection** — firmware analysis rejects paths that escape the working directory
+- **Scope enforcement** — every module operation is checked against an authorized CIDR scope file before executing
+- **Credential masking** — passwords are redacted in all logs and reports by default (`--reveal-creds` to show)
+- **Thread caps per module** — per-module thread limits prevent accidental DoS on embedded devices
+- **SSL/TLS verification** — enabled by default on all outgoing HTTP connections; disable explicitly with `--no-verify`
+
+### New Core Modules
+- **`core/http.py`** — shared `requests.Session` factory with consistent SSL, proxy, and User-Agent settings
+- **`core/compliance.py`** — maps findings to OWASP IoT, NIST 800-213, IEC 62443, ETSI EN 303 645, and CIS Controls frameworks
+- **`core/engagement.py`** — engagement metadata (client name, authorized CIDRs, time-window enforcement)
+- **`core/database.py`** — SQLite persistence for sessions, devices, and findings with upsert support
+- **`core/api.py`** — REST API server (`--serve`, `--port`, `--host`) with endpoints for sessions, findings, and async scan jobs
+
+### Enhanced Reporting
+- **Delta reports** (`--compare previous.json`) — new / resolved / changed findings since a prior scan
+- **SIEM export** (`modules/reporting/siem.py`):
+  - Splunk HEC (HTTP Event Collector) — NDJSON event stream
+  - CEF syslog — UDP or TCP with RFC-3164 framing
+  - Elastic Common Schema (ECS v8) — NDJSON file output
+
+### Brute-Force Improvements
+- **Exponential backoff** — automatic retry with `2^n` second wait on `ConnectionResetError`
+- **HTTP 429 detection** — pauses automatically when the target returns rate-limit responses
+
+### Plugin System
+- Drop custom CVE exploit modules into `plugins/exploits/`. Each file must export `CVE_ID`, `check(target, config)`, and `exploit(target, payload, config)`. See `plugins/exploits/README.md`.
+
+### Expanded Wordlists
+- `wordlists/vendors/` — per-vendor credential lists for Hikvision, Dahua, D-Link, ASUS, TP-Link, Ubiquiti, NETGEAR
+- `wordlists/protocols/` — SNMP community strings, MQTT topic patterns
+
+### Engagement Workflow
+```bash
+# Create an engagement file
+cp engagement.yml.example engagement.yml
+# Edit client name, authorized CIDRs, and test window
+
+# Run a scoped audit
+python3 iotbreaker.py audit --network 192.168.1.0/24 \
+  --engagement engagement.yml \
+  --scope-file scope.txt \
+  --db results.db \
+  --format html
+```
+
+### REST API
+```bash
+# Start the API server
+python3 iotbreaker.py --serve --port 5000
+
+# Query sessions
+curl http://localhost:5000/api/v1/sessions
+
+# Get findings for a session
+curl http://localhost:5000/api/v1/sessions/<session_id>
+```
+
+### New CLI Flags
+
+| Flag | Description |
+|---|---|
+| `--scope-file FILE` | Authorized CIDR list; targets outside scope are skipped |
+| `--no-verify` | Disable SSL certificate verification |
+| `--reveal-creds` | Show plaintext passwords in output (default: masked) |
+| `--fast` | Reduce per-connection timeout for quicker scans |
+| `--compare FILE` | Generate a delta report against a previous JSON scan |
+| `--engagement FILE` | Load engagement metadata (YAML) |
+| `--db FILE` | SQLite database path for persistent results |
+| `--serve` | Start REST API server after scan |
+| `--port N` | REST API port (default: 5000) |
+| `--host ADDR` | REST API bind address (default: 127.0.0.1) |
+
+---
+
+## Testing
+
+The full test suite runs with pytest and requires no network access (all external calls are mocked):
+
+```bash
+pip install pytest flask
+python -m pytest tests/ -v
+```
+
+191 tests cover all core modules, reporting formats, SIEM exporters, brute-force backoff logic, exploit registry and plugin loader, engine scope/thread-cap logic, and all REST API endpoints.
+
+---
+
 ## Contributing
 
 Contributions are welcome. To add a new exploit module, implement the `BaseExploit` interface in `modules/exploit/exploit.py` and submit a pull request with a corresponding test case and documentation update.
@@ -358,7 +462,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 <div align="center">
 
-**IoTBreaker v4.0.0** — Built for security professionals, by security professionals.
+**IoTBreaker v4.0.0** — Built for security professionals, by security professionals. 191 tests. Zero known security regressions.
 
 [GitHub](https://github.com/servais1983/IoTBreaker) &nbsp;|&nbsp; [Issues](https://github.com/servais1983/IoTBreaker/issues) &nbsp;|&nbsp; [Releases](https://github.com/servais1983/IoTBreaker/releases)
 

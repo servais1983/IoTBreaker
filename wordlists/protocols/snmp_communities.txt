@@ -1,0 +1,24 @@
+# SNMP community strings common in IoT / embedded devices
+# Sources: vendor defaults, NIST NVD, public pen-test resources
+public
+private
+community
+snmp
+cisco
+manager
+monitor
+admin
+default
+internal
+secret
+test
+write
+read
+SNMP_trap
+trap
+guest
+router
+switch
+RW
+RO
+comcast

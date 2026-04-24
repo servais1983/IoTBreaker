@@ -335,12 +335,27 @@ class FirmwareAnalyzer:
 
         try:
             Console.info("Extracting firmware with binwalk...")
+            # S7: Run binwalk as the invoking user; --run-as=root removed to prevent
+            # path-traversal escalation when processing untrusted firmware images.
             subprocess.run(
-                ["binwalk", "-eM", "--run-as=root", "-C", str(extract_dir), str(path)],
+                ["binwalk", "-eM", "-C", str(extract_dir), str(path)],
                 capture_output=True, timeout=300
             )
 
             if extract_dir.exists() and any(extract_dir.iterdir()):
+                # S7: Post-extraction path traversal validation
+                safe_root = extract_dir.resolve()
+                for extracted_file in extract_dir.rglob("*"):
+                    try:
+                        resolved = extracted_file.resolve()
+                        if not str(resolved).startswith(str(safe_root)):
+                            Console.warning(
+                                f"[S7] Path traversal in firmware: {extracted_file} — removing"
+                            )
+                            if extracted_file.is_file():
+                                extracted_file.unlink(missing_ok=True)
+                    except Exception:
+                        pass
                 return extract_dir
 
         except subprocess.TimeoutExpired:

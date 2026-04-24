@@ -1,0 +1,7 @@
+# ASUS router / AP default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+root
+user
+guest

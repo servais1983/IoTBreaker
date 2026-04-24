@@ -1,0 +1,10 @@
+# Hikvision IP camera / NVR / DVR default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+Administrator
+user
+operator
+guest
+service
+hikadmin

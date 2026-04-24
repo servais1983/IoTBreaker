@@ -28,11 +28,11 @@ from pathlib import Path
 from core.logger import get_logger
 from core.output import Console
 from core.config import Config
+from core.http import make_session
 
 logger = get_logger(__name__)
 
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Default wordlist paths
@@ -73,9 +73,17 @@ class BruteForceModule:
     def __init__(self, config: Config):
         self.config = config
         self.timeout = config.get("timeout", 5)
-        self.delay = config.get("brute_delay", 0.0)
+        self.delay = config.get("brute_delay", 0.5)
         self.stop_on_success = config.get("stop_on_success", True)
         self._stop_event = threading.Event()
+        # S1: Respect verify_ssl; suppress urllib3 warnings only when disabled
+        self.verify_ssl = config.get("verify_ssl", True)
+        if not self.verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        # S4: Whether to show full passwords or mask them
+        self.reveal_creds = config.get("reveal_creds", False)
+        # G7: Shared session with proxy + SSL settings applied globally
+        self.session = make_session(config)
 
     def run(
         self,
@@ -187,7 +195,9 @@ class BruteForceModule:
                     "password": password,
                 }
                 results.append(result)
-                Console.finding("CRITICAL", f"Valid credentials: {username}:{password}",
+                # S4: Mask password in console unless --reveal-creds was set
+                masked_pw = password if self.reveal_creds else '*' * len(password)
+                Console.finding("CRITICAL", f"Valid credentials: {username}:{masked_pw}",
                                 f"{protocol.upper()} {target}:{port}")
                 if self.stop_on_success:
                     self._stop_event.set()
@@ -195,6 +205,35 @@ class BruteForceModule:
 
         Console.progress(total, total, f"{protocol} complete")
         return results
+
+    # ------------------------------------------------------------------ #
+    # Backoff helper                                                       #
+    # ------------------------------------------------------------------ #
+
+    def _attempt_with_backoff(self, fn, *args, max_retries: int = 3, **kwargs):
+        """
+        Call fn(*args, **kwargs) with exponential backoff on transient network errors.
+        Detects HTTP 401/403 rate-spikes (account lockout) and pauses.
+        Returns fn's result, or None if all retries are exhausted.
+        """
+        for attempt in range(max_retries):
+            try:
+                result = fn(*args, **kwargs)
+                # If result is an HTTP response-like object, check for lockout signals
+                if hasattr(result, "status_code"):
+                    if result.status_code == 429:
+                        pause = 2 ** (attempt + 2)
+                        Console.warning(f"Rate-limited (HTTP 429). Pausing {pause}s before retry.")
+                        time.sleep(pause)
+                        continue
+                return result
+            except ConnectionResetError:
+                wait = 2 ** attempt
+                logger.debug(f"ConnectionResetError on attempt {attempt+1}/{max_retries}. Retrying in {wait}s.")
+                time.sleep(wait)
+            except (ConnectionRefusedError, OSError):
+                return None
+        return None
 
     # ------------------------------------------------------------------ #
     # Protocol-specific attack functions                                  #
@@ -281,17 +320,20 @@ class BruteForceModule:
             return False
 
     def _attack_http(self, target: str, port: int, username: str, password: str) -> bool:
-        """Test HTTP Basic Auth credentials."""
+        """Test HTTP Basic Auth credentials with backoff on connection resets."""
         scheme = "https" if port in (443, 8443) else "http"
         url = f"{scheme}://{target}:{port}/"
         try:
-            resp = requests.get(
+            resp = self._attempt_with_backoff(
+                self.session.get,
                 url,
                 auth=(username, password),
                 timeout=self.timeout,
-                verify=False,
-                allow_redirects=True
+                verify=self.verify_ssl,
+                allow_redirects=True,
             )
+            if resp is None:
+                return False
             if resp.status_code == 200:
                 content_lower = resp.text.lower()
                 if not any(kw in content_lower for kw in ["unauthorized", "login", "sign in"]):
@@ -306,11 +348,11 @@ class BruteForceModule:
             from requests.auth import HTTPDigestAuth
             url = f"rtsp://{target}:{port}/"
             # Use HTTP as a proxy for digest auth testing
-            resp = requests.get(
+            resp = self.session.get(
                 f"http://{target}:{port}/",
                 auth=HTTPDigestAuth(username, password),
                 timeout=self.timeout,
-                verify=False
+                verify=self.verify_ssl
             )
             return resp.status_code == 200
         except Exception:

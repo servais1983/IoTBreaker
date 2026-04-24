@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
+def _str_to_bool(value: str) -> bool:
+    """Convert a string environment variable to a boolean."""
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
 # Default IoT-specific port list
 IOT_COMMON_PORTS = [
     21,    # FTP
@@ -74,12 +79,15 @@ DEFAULTS: Dict[str, Any] = {
     "wordlist_passwords": "wordlists/passwords.txt",
     "wordlist_web_paths": "wordlists/web_paths.txt",
     "safe_mode": True,
-    "verify_ssl": False,
+    "verify_ssl": True,
+    "http_proxy": "",
     "follow_redirects": True,
     "max_redirects": 5,
     "banner_grab_timeout": 3,
-    "brute_delay": 0.0,
+    "brute_delay": 0.5,
     "stop_on_success": True,
+    # 4.4: SIEM/SOAR export settings (set as a dict in config YAML)
+    "siem": {},
 }
 
 
@@ -98,11 +106,12 @@ class Config:
     def _load_env(self):
         """Load configuration from environment variables."""
         env_map = {
-            "SHODAN_API_KEY":  "shodan_api_key",
-            "NVD_API_KEY":     "nvd_api_key",
-            "IOTBREAKER_TIMEOUT": "timeout",
-            "IOTBREAKER_THREADS": "threads",
-            "IOTBREAKER_OUTPUT":  "output_dir",
+            "SHODAN_API_KEY":      "shodan_api_key",
+            "NVD_API_KEY":         "nvd_api_key",
+            "IOTBREAKER_TIMEOUT":  "timeout",
+            "IOTBREAKER_THREADS":  "threads",
+            "IOTBREAKER_OUTPUT":   "output_dir",
+            "IOTBREAKER_PROXY":    "http_proxy",
         }
         for env_var, config_key in env_map.items():
             value = os.getenv(env_var)
@@ -114,6 +123,23 @@ class Config:
                     except ValueError:
                         pass
                 self._data[config_key] = value
+
+        # Boolean env var: IOTBREAKER_VERIFY_SSL=false disables SSL verification
+        verify_env = os.getenv("IOTBREAKER_VERIFY_SSL")
+        if verify_env is not None:
+            self._data["verify_ssl"] = _str_to_bool(verify_env)
+
+        # S5: Optional OS keyring lookup for API keys (silent if keyring not installed)
+        try:
+            import keyring
+            for service_key, config_key in (("shodan_api_key", "shodan_api_key"),
+                                             ("nvd_api_key", "nvd_api_key")):
+                if not self._data.get(config_key):
+                    secret = keyring.get_password("iotbreaker", service_key)
+                    if secret:
+                        self._data[config_key] = secret
+        except Exception:
+            pass
 
     def load_file(self, path: str):
         """Load configuration from a YAML or JSON file."""
@@ -130,7 +156,20 @@ class Config:
                 raise ValueError(f"Unsupported configuration format: {p.suffix}")
 
         if isinstance(data, dict):
-            self._data.update(data)
+            # 2.4: Validate config keys against known DEFAULTS; warn on unknowns
+            # Keys used internally at runtime (set via config.set()) are also allowed
+            _RUNTIME_KEYS = {"engagement_meta", "db_path", "verbose", "reveal_creds"}
+            unknown = set(data.keys()) - set(DEFAULTS.keys()) - _RUNTIME_KEYS
+            if unknown:
+                import warnings
+                warnings.warn(
+                    f"Unknown configuration key(s) in {path}: {', '.join(sorted(unknown))}. "
+                    "These will be ignored. Check docs/CONFIGURATION.md for valid keys.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            # Only merge recognised keys so unknown values never silently override internals
+            self._data.update({k: v for k, v in data.items() if k not in unknown})
 
     def get(self, key: str, default: Any = None) -> Any:
         """Retrieve a configuration value."""

@@ -1,0 +1,7 @@
+# D-Link router / AP default credentials
+# Sources: vendor documentation, public security advisories
+admin
+Admin
+user
+guest
+root

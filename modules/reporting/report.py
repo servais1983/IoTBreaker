@@ -18,6 +18,7 @@ Reports include:
 """
 
 import json
+import html
 import os
 import re
 import datetime
@@ -79,11 +80,80 @@ class ReportGenerator:
             "tool_version": VERSION,
             "risk_score":   self.risk_score,
             "statistics":   self.statistics,
+            "engagement":   self.config.get("engagement_meta", {}),
             "devices":      self.devices,
             "findings":     self.findings,
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str, ensure_ascii=False)
+        return str(path)
+
+    def generate_delta(self, baseline_path: str, output_dir: Path) -> str:
+        """
+        G4: Generate a differential report comparing this session against a
+        baseline JSON report from a previous session.
+
+        Findings are matched by (title, target, port) as a composite key.
+        Three categories are produced:
+          - new      : appear in current, absent in baseline
+          - resolved : present in baseline, absent in current
+          - changed  : same key but different severity or CVSS score
+
+        Returns the path to the generated delta JSON file.
+        """
+        baseline_p = Path(baseline_path)
+        if not baseline_p.exists():
+            raise FileNotFoundError(f"Baseline report not found: {baseline_path}")
+
+        with open(baseline_p, "r", encoding="utf-8") as f:
+            baseline_data = json.load(f)
+
+        baseline_findings = baseline_data.get("findings", [])
+
+        def _key(f: dict) -> tuple:
+            return (
+                f.get("title", ""),
+                f.get("target", ""),
+                str(f.get("port", "")),
+            )
+
+        baseline_by_key = {_key(f): f for f in baseline_findings}
+        current_by_key  = {_key(f): f for f in self.findings}
+
+        new_findings      = [f for k, f in current_by_key.items()  if k not in baseline_by_key]
+        resolved_findings = [f for k, f in baseline_by_key.items() if k not in current_by_key]
+        changed_findings  = []
+
+        for k, curr in current_by_key.items():
+            if k in baseline_by_key:
+                base = baseline_by_key[k]
+                if (curr.get("severity")   != base.get("severity") or
+                        curr.get("cvss_score") != base.get("cvss_score")):
+                    changed_findings.append({
+                        "key":      {"title": k[0], "target": k[1], "port": k[2]},
+                        "baseline": base,
+                        "current":  curr,
+                    })
+
+        delta = {
+            "session_id":          self.session_id,
+            "baseline_session_id": baseline_data.get("session_id", "unknown"),
+            "generated_at":        self.generated_at,
+            "tool_version":        VERSION,
+            "summary": {
+                "new_count":      len(new_findings),
+                "resolved_count": len(resolved_findings),
+                "changed_count":  len(changed_findings),
+            },
+            "new":      new_findings,
+            "resolved": resolved_findings,
+            "changed":  changed_findings,
+        }
+
+        path = output_dir / f"iotbreaker_{self.session_id}_delta.json"
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(delta, f, indent=2, default=str, ensure_ascii=False)
+
         return str(path)
 
     def generate_html(self, output_dir: Path) -> str:
@@ -424,11 +494,8 @@ class ReportGenerator:
         return round(min(risk, 10.0), 1)
 
     def _esc(self, text: str) -> str:
-        if not isinstance(text, str):
-            text = str(text)
-        return (text
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace('"', "&quot;")
-                .replace("'", "&#39;"))
+        """S6: Safely escape text for HTML context using stdlib html.escape.
+        quote=True ensures double and single quotes are also escaped, preventing
+        injection into HTML attribute values.
+        """
+        return html.escape(str(text), quote=True)
