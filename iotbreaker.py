@@ -422,6 +422,12 @@ Examples:
         help="Skip exploitation phase")
     p_audit.add_argument("--shodan", action="store_true",
         help="Include Shodan intelligence gathering")
+    p_audit.add_argument(
+        "--format", "-f",
+        choices=["json", "html", "pdf", "all"],
+        default=None,
+        help="Report output format (overrides global --format; default: all)"
+    )
 
     return parser
 
@@ -456,7 +462,7 @@ def main():
     config.set("timeout", args.timeout)
     config.set("threads", args.threads)
     config.set("output_dir", args.output)
-    config.set("report_format", args.format)
+    config.set("report_format", getattr(args, "format", None) or "all")
     config.set("verbose", args.verbose)
 
     # G2: SQLite database path

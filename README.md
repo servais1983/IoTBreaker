@@ -176,13 +176,26 @@ IoTBreaker generates structured reports in four formats. Every report includes a
 git clone https://github.com/servais1983/IoTBreaker.git
 cd IoTBreaker
 
+# Create a Python virtual environment (strongly recommended)
+python3 -m venv .venv
+
+# Activate the virtual environment
+# On Linux / macOS:
+source .venv/bin/activate
+# On Windows (PowerShell):
+# .venv\Scripts\Activate.ps1
+# On Windows (cmd):
+# .venv\Scripts\activate.bat
+
 # Install Python dependencies
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 
 # Optional: configure API keys
 cp env.example .env
 # Edit .env and add your Shodan API key and NVD API key
 ```
+
+> **Important:** The virtual environment must be activated every time you open a new terminal before running IoTBreaker. You will know it is active when you see `(.venv)` at the start of your prompt. To deactivate it, run `deactivate`.
 
 **Dependencies overview:**
 
