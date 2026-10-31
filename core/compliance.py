@@ -135,6 +135,21 @@ COMPLIANCE_MAP: Dict[str, Dict[str, List[str]]] = {
         "NIST_CSF_2":      ["PR.DS-02 (Data-in-transit is protected)"],
     },
 
+    # ---------- OT / ICS Industrial Protocols ----------
+    "ot_exposure": {
+        "OWASP_IoT_2018":  ["I2 - Insecure Network Services",
+                            "I3 - Insecure Ecosystem Interfaces"],
+        "IEC_62443_3_3":   ["SR 1.1 - Human User Identification and Authentication",
+                            "SR 1.2 - Software Process and Device Identification",
+                            "SR 2.1 - Authorization Enforcement"],
+        "NIST_SP_800_82":  ["AC-3 (Access Enforcement)",
+                            "IA-3 (Device Identification and Authentication)",
+                            "SC-7 (Boundary Protection)"],
+        "ETSI_EN_303_645": ["5.6 - Minimize exposed attack surfaces"],
+        "NIST_CSF_2":      ["PR.AA-01 (Identities and credentials are managed)",
+                            "PR.IR-01 (Networks and environments are protected)"],
+    },
+
     # ---------- CVE / Exploit ----------
     "cve_exploit": {
         "OWASP_IoT_2018":  ["I3 - Insecure Ecosystem Interfaces",
@@ -164,6 +179,13 @@ _TITLE_ROUTER = [
     ("UPnP",                  "upnp"),
     ("SNMP",                  "snmp"),
     ("FTP",                   "ftp"),
+    ("Modbus",                "ot_exposure"),
+    ("S7comm",                "ot_exposure"),
+    ("Siemens S7",            "ot_exposure"),
+    ("BACnet",                "ot_exposure"),
+    ("DNP3",                  "ot_exposure"),
+    ("EtherNet/IP",           "ot_exposure"),
+    ("OPC-UA",                "ot_exposure"),
     ("Admin Interface",       "http_admin"),
     ("Security Header",       "missing_security_headers"),
     ("Firmware",              "firmware_secrets"),

@@ -78,6 +78,8 @@ IoTBreaker/
 │   │   └── exploit.py          # CVE exploit modules + plugin loader
 │   ├── firmware/
 │   │   └── firmware.py         # Static firmware analysis
+│   ├── ot/
+│   │   └── ot_probe.py         # OT/ICS read-only probes (Modbus, S7, BACnet, DNP3, ENIP, OPC-UA)
 │   └── reporting/
 │       ├── report.py           # HTML / JSON / PDF / TXT / delta report generation
 │       └── siem.py             # SIEM export (Splunk HEC, CEF syslog, ECS NDJSON)
@@ -130,6 +132,30 @@ IoTBreaker checks the following protocols and services for known misconfiguratio
 | SNMP | 161 | Default community strings (public/private), v1/v2c usage |
 | FTP | 21 | Anonymous login, default credentials, banner disclosure |
 | Modbus | 502 | Unauthenticated read/write access |
+
+### OT / ICS Industrial Protocols
+
+The `ot` module performs **strictly read-only** active probing of industrial protocols — it only issues identification/status requests and never writes, so it is safe to run against production OT assets (subject to your engagement rules). Every answered probe is reported as an exposure, since these protocols are typically unauthenticated, and is mapped to IEC 62443-3-3 and NIST SP 800-82 controls.
+
+| Protocol | Port | Read-only Probe | Severity |
+|---|---|---|---|
+| Modbus/TCP | 502 | Read Device Identification (FC 43/14), FC3 fallback | HIGH |
+| Siemens S7 | 102 | COTP / ISO-on-TCP connection confirm | HIGH |
+| DNP3 | 20000 | Data-link Request Link Status | HIGH |
+| BACnet/IP | 47808 | Who-Is / I-Am enumeration | MEDIUM |
+| EtherNet/IP | 44818 | ListIdentity disclosure | MEDIUM |
+| OPC-UA | 4840 | Hello / Acknowledge transport handshake | MEDIUM |
+
+```bash
+# Probe all OT protocols on a controller
+python3 iotbreaker.py ot --target 192.168.1.50 --protocol all
+
+# Probe a single protocol on a custom port
+python3 iotbreaker.py ot --target 192.168.1.50 --protocol modbus --ot-port 1502
+
+# Include OT probing in a full audit (only devices exposing OT ports are probed)
+python3 iotbreaker.py audit --network 192.168.1.0/24 --ot
+```
 
 ### CVE Exploit Modules
 
@@ -231,6 +257,7 @@ Modules:
   vuln          Protocol vulnerability assessment
   brute         Credential brute-force
   exploit       CVE exploit verification and execution
+  ot            OT/ICS industrial protocol probing (read-only)
   firmware      Static firmware analysis
   shodan        Shodan intelligence lookup
   cve           CVE database search (NIST NVD)

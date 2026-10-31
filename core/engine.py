@@ -12,7 +12,7 @@ import sys
 import json
 import time
 import ipaddress
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -30,6 +30,7 @@ MODULE_THREAD_CAPS: Dict[str, int] = {
     "vuln":        5,
     "brute":       3,
     "exploit":     3,
+    "ot":          5,
     "audit":       10,
 }
 
@@ -47,7 +48,7 @@ class Engine:
 
     def __init__(self, config: Config):
         self.config = config
-        self.session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        self.session_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.findings: List[Dict] = []
         self.devices: List[Dict] = []
         self.start_time = time.time()
@@ -128,6 +129,7 @@ class Engine:
             "vuln":        self._run_vuln,
             "brute":       self._run_brute,
             "exploit":     self._run_exploit,
+            "ot":          self._run_ot,
             "firmware":    self._run_firmware,
             "shodan":      self._run_shodan,
             "cve":         self._run_cve,
@@ -377,6 +379,41 @@ class Engine:
                 )
         return bool(result)
 
+    def _run_ot(self, args) -> bool:
+        # S3: Scope check
+        if not self._is_in_scope(args.target):
+            Console.error(f"[SCOPE] {args.target} is outside the authorized scope. Skipping.")
+            return False
+        from modules.ot.ot_probe import OTScanner
+        scanner = OTScanner(self.config)
+
+        protocols = getattr(args, "protocol", None)
+        if not protocols or protocols == "all":
+            protocols = ["all"]
+        else:
+            protocols = [protocols]
+
+        self.findings = scanner.run(
+            target=args.target,
+            protocols=protocols,
+            port_override=getattr(args, "ot_port", None),
+        )
+
+        Console.section("OT / ICS PROBE RESULTS")
+        if self.findings:
+            for f in self.findings:
+                Console.finding(
+                    f.get("severity", "INFO"),
+                    f.get("title", "Unknown"),
+                    f.get("description", ""),
+                )
+                if f.get("evidence"):
+                    print(f"         Evidence: {f['evidence']}")
+            Console.result_summary(self.findings)
+        else:
+            Console.success(f"No exposed OT/ICS protocols detected on {args.target}")
+        return bool(self.findings)
+
     def _run_firmware(self, args) -> bool:
         from modules.firmware.firmware import FirmwareAnalyzer
         fa = FirmwareAnalyzer(self.config)
@@ -539,6 +576,24 @@ class Engine:
             findings = vuln_scanner.run(ip, checks=checks, cve_lookup=True)
             self.findings.extend(findings)
             device["findings"] = findings
+
+        # Phase 3b: OT/ICS active probe (optional)
+        if getattr(args, "ot", False):
+            Console.section("PHASE 3b - OT / ICS ACTIVE PROBE")
+            from modules.ot.ot_probe import OTScanner, OT_PORTS
+            ot_scanner = OTScanner(self.config)
+            for device in self.devices:
+                ip = device.get("ip", "")
+                if not ip:
+                    continue
+                # Only probe devices exposing a known OT port (keeps the audit fast/safe)
+                open_ports = set(device.get("open_ports", []))
+                if open_ports and not open_ports.intersection(OT_PORTS.values()):
+                    continue
+                Console.info(f"OT/ICS probe: {ip}...")
+                ot_findings = ot_scanner.run(ip, protocols=["all"])
+                self.findings.extend(ot_findings)
+                device.setdefault("findings", []).extend(ot_findings)
 
         # Phase 4: Shodan (optional)
         if getattr(args, "shodan", False):
