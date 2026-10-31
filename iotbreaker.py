@@ -79,6 +79,9 @@ Examples:
   # Credential brute-force
   python3 iotbreaker.py brute --target 192.168.1.100 --protocol telnet
 
+  # OT/ICS industrial protocol probe (read-only)
+  python3 iotbreaker.py ot --target 192.168.1.50 --protocol all
+
   # Firmware analysis
   python3 iotbreaker.py firmware --file /path/to/firmware.bin
 
@@ -341,6 +344,24 @@ Examples:
         help="Command payload for RCE exploits")
 
     # ------------------------------------------------------------------ #
+    # MODULE: ot                                                           #
+    # ------------------------------------------------------------------ #
+    p_ot = subparsers.add_parser(
+        "ot",
+        help="OT/ICS industrial protocol active probing (read-only)",
+        description="Safe, read-only probing of industrial protocols: Modbus/TCP, "
+                    "Siemens S7, BACnet/IP, DNP3, EtherNet/IP, OPC-UA."
+    )
+    p_ot.add_argument("--target", "-T", required=True, metavar="IP",
+        help="Target IP address")
+    p_ot.add_argument("--protocol",
+        choices=["modbus", "s7", "bacnet", "dnp3", "enip", "opcua", "all"],
+        default="all",
+        help="OT protocol to probe (default: all)")
+    p_ot.add_argument("--ot-port", type=int, metavar="PORT",
+        help="Override the default port (only valid with a single --protocol)")
+
+    # ------------------------------------------------------------------ #
     # MODULE: firmware                                                     #
     # ------------------------------------------------------------------ #
     p_fw = subparsers.add_parser(
@@ -420,6 +441,8 @@ Examples:
         help="Comma-separated IPs to exclude")
     p_audit.add_argument("--no-exploit", action="store_true",
         help="Skip exploitation phase")
+    p_audit.add_argument("--ot", action="store_true",
+        help="Include OT/ICS active probing of devices exposing industrial ports")
     p_audit.add_argument("--shodan", action="store_true",
         help="Include Shodan intelligence gathering")
     p_audit.add_argument(

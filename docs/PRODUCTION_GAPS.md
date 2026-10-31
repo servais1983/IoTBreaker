@@ -1,7 +1,8 @@
 # IoTBreaker v4.0.0 — Production Readiness Gaps
 
-> **Status:** 8/10 gaps resolved — 2026-04-24
-> G5 (OT/ICS active testing) and G6 (Wireless) are deferred — see notes below.
+> **Status:** 8/10 fully resolved, G5 partially resolved — updated 2026-10-31
+> G5 (OT/ICS) now ships read-only active probes for 6 industrial protocols (see below);
+> deep authenticated interaction and G6 (Wireless) remain deferred.
 
 ---
 
@@ -117,12 +118,19 @@ A `--compare SESSION_ID` flag that produces a delta report:
 
 ---
 
-## ⏳ G5 — OT/ICS Protocol Depth is Missing — **DEFERRED**
+## 🟡 G5 — OT/ICS Protocol Depth — **PARTIALLY IMPLEMENTED**
 
-> **Status (2026-04-24):** Deferred — requires optional Linux-native dependencies
-> (`pymodbus`, `python-snap7`, `bacpypes3`, `opcua`) and lab hardware for validation.
-> Port detection of OT protocols (502/Modbus, 102/S7, 47808/BACnet, 20000/DNP3, 4840/OPC-UA)
-> is already present in the scanner. Active testing modules are planned for v4.1.0.
+> **Resolution (2026-10-31):** `modules/ot/ot_probe.py` — `OTScanner` class with **read-only**,
+> pure-Python (stdlib only, no extra dependencies) active probes for six industrial protocols:
+> Modbus/TCP (502), Siemens S7 / ISO-on-TCP (102), BACnet/IP (47808), DNP3 (20000),
+> EtherNet/IP (44818), and OPC-UA (4840). Exposed via the `ot` CLI module and an optional
+> `--ot` phase in `audit`. Findings carry CVSS, CWE-306/200 and IEC 62443 / NIST SP 800-82
+> compliance mappings (category `ot_exposure`). Frame builders and parsers are unit-tested
+> (`tests/test_ot.py`, 42 tests).
+>
+> **Still deferred to a later release:** deep, authenticated protocol interaction (register
+> read/write, CPU state, OPC-UA node browsing) which benefits from the optional native
+> libraries (`pymodbus`, `python-snap7`, `bacpypes3`, `opcua`) and lab hardware for validation.
 
 **Current state:**
 The tool **detects** OT devices on discovery (port 502 → Modbus, port 102 → Siemens S7,
@@ -297,7 +305,7 @@ a static mapping table keyed by check type.
 | G2 | No persistent database | High | Critical for team use | ✅ Implemented (SQLite) |
 | G3 | No REST API | Medium | High for automation | ✅ Implemented (Flask) |
 | G4 | No differential reports | Medium | High for re-tests | ✅ Implemented |
-| G5 | No OT/ICS active testing | High | Critical for ICS engagements | ⏳ Deferred v4.1 |
+| G5 | No OT/ICS active testing | High | Critical for ICS engagements | 🟡 Partial (read-only probes) |
 | G6 | No wireless protocol support | Very high | High for IoT assessments | ⏳ Deferred v4.2 |
 | G7 | No HTTP proxy support | Low | Medium for teams using Burp | ✅ Implemented |
 | G8 | No MQTT TLS testing | Low | Medium | ✅ Implemented |

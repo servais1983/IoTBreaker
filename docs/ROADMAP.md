@@ -214,16 +214,22 @@ Reporting          SIEM Export
 
 ## Priority 4 — Coverage Expansion
 
-### ⏳ 4.1 OT/ICS Active Testing — DEFERRED (v4.1.0)
+### 🟡 4.1 OT/ICS Active Testing — PARTIALLY DONE
 
-| Protocol | Library | Tests to add |
-|---|---|---|
-| Modbus | `pymodbus` | Read coils/registers, illegal function codes |
-| Siemens S7 | `python-snap7` | CPU state read, DB block enumeration |
-| BACnet | `bacpypes3` | Device/object enumeration, anonymous read |
-| DNP3 | raw socket | Unauthenticated command probe |
-| OPC-UA | `opcua` | Anonymous session, node browse |
-| EtherNet/IP | `pycomm3` | Tag read without auth |
+> **Implemented 2026-10-31:** `modules/ot/ot_probe.py` — `OTScanner`, pure-Python
+> (stdlib only) **read-only** probes. New `ot` CLI module + optional `--ot` audit phase.
+> 42 unit tests in `tests/test_ot.py`. Compliance category `ot_exposure` (IEC 62443,
+> NIST SP 800-82). The "tests done now" column below marks what ships today; the library
+> column marks the deeper, authenticated interaction still planned.
+
+| Protocol | Library (future deep tests) | Shipped now (read-only) | Deeper tests planned |
+|---|---|---|---|
+| Modbus | `pymodbus` | ✅ Read Device Identification / FC3 probe | Read coils/registers, illegal function codes |
+| Siemens S7 | `python-snap7` | ✅ COTP connection confirm detection | CPU state read, DB block enumeration |
+| BACnet | `bacpypes3` | ✅ Who-Is / I-Am enumeration | Object property read |
+| DNP3 | raw socket | ✅ Request Link Status probe | Unauthenticated command probe |
+| OPC-UA | `opcua` | ✅ Hello/Acknowledge transport handshake | Anonymous session, node browse |
+| EtherNet/IP | `pycomm3` | ✅ ListIdentity disclosure | Tag read without auth |
 
 ### ⏳ 4.2 Wireless Protocol Support — DEFERRED (v4.2.0)
 
