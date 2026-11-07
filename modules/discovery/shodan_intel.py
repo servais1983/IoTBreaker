@@ -11,7 +11,7 @@ Provides IoT threat intelligence via the Shodan API:
 """
 
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 from core.logger import get_logger
 from core.output import Console

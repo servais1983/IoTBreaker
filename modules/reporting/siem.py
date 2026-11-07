@@ -20,12 +20,10 @@ Usage
 """
 
 import json
-import logging
 import socket
-import ssl
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from core.config import Config
 from core.http import make_session
@@ -172,11 +170,11 @@ class SiemExporter:
             f"dpt={finding.get('port', 0)}",
             f"proto={_cef_escape(finding.get('protocol', ''))}",
             f"cs1={_cef_escape(sev)}",
-            f"cs1Label=Severity",
+            "cs1Label=Severity",
             f"cs2={_cef_escape(','.join(finding.get('cve_ids', [])))}",
-            f"cs2Label=CVE_IDs",
+            "cs2Label=CVE_IDs",
             f"cs3={_cef_escape(session_id)}",
-            f"cs3Label=SessionID",
+            "cs3Label=SessionID",
             f"msg={_cef_escape(description)[:512]}",
         ]
         cvss = finding.get("cvss_score")

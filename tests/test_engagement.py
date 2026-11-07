@@ -11,7 +11,6 @@ Covers:
 """
 import pytest
 from datetime import date, timedelta
-from pathlib import Path
 
 from core.engagement import Engagement, load_engagement
 

@@ -11,13 +11,10 @@ Covers:
 - session_id format
 - _parse_ports: iot-common, individual ports, ranges, comma list
 """
-import ipaddress
 import pytest
-from pathlib import Path
 from unittest.mock import patch
 
 from core.engine import Engine, MODULE_THREAD_CAPS
-from core.config import Config
 
 
 @pytest.fixture
@@ -137,6 +134,44 @@ class TestIsInScope:
         f.write_text("10.0.0.0/8\n")
         engine.load_scope(str(f))
         assert engine._is_in_scope("10.255.255.255") is True
+
+    def test_cidr_wider_than_scope_is_rejected(self, engine, tmp_dir):
+        f = tmp_dir / "scope.txt"
+        f.write_text("192.168.1.0/24\n")
+        engine.load_scope(str(f))
+        assert engine._is_in_scope("192.168.1.0/16") is False
+        assert engine._is_in_scope("10.0.0.0/8") is False
+
+    def test_cidr_inside_scope_is_accepted(self, engine, tmp_dir):
+        f = tmp_dir / "scope.txt"
+        f.write_text("192.168.1.0/24\n")
+        engine.load_scope(str(f))
+        assert engine._is_in_scope("192.168.1.0/28") is True
+
+    def test_ipv6_address_does_not_match_ipv4_scope(self, engine, tmp_dir):
+        f = tmp_dir / "scope.txt"
+        f.write_text("192.168.1.0/24\n")
+        engine.load_scope(str(f))
+        assert engine._is_in_scope("2001:db8::1") is False
+
+    def test_discover_does_not_start_when_network_is_out_of_scope(self, engine, tmp_dir):
+        f = tmp_dir / "scope.txt"
+        f.write_text("192.168.1.0/24\n")
+        engine.load_scope(str(f))
+        args = type("Args", (), {"network": "10.0.0.0/8", "method": "tcp", "exclude": None})()
+        with patch("modules.discovery.discovery.DiscoveryModule") as module:
+            assert engine._run_discover(args) is False
+        module.assert_not_called()
+
+    def test_discover_runs_when_network_is_inside_scope(self, engine, tmp_dir):
+        f = tmp_dir / "scope.txt"
+        f.write_text("203.0.113.0/24\n")
+        engine.load_scope(str(f))
+        args = type("Args", (), {"network": "203.0.113.0/28", "method": "tcp", "exclude": None})()
+        with patch("modules.discovery.discovery.DiscoveryModule") as module:
+            module.return_value.run.return_value = []
+            assert engine._run_discover(args) is False
+        module.return_value.run.assert_called_once()
 
 
 # ------------------------------------------------------------------ #

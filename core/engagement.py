@@ -163,7 +163,7 @@ def load_engagement(path: str) -> Engagement:
     )
     if eng.authorized_cidrs:
         Console.info(
-            f"[ENGAGEMENT] Authorized scope: "
+            "[ENGAGEMENT] Authorized scope: "
             + ", ".join(str(n) for n in eng.authorized_cidrs)
         )
     return eng

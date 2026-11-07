@@ -11,7 +11,7 @@ import os
 import json
 import yaml
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 def _str_to_bool(value: str) -> bool:

@@ -10,7 +10,9 @@ and clean console formatting.
 import logging
 import sys
 from pathlib import Path
-from datetime import datetime
+from typing import Optional
+
+from .timeutil import utc_now
 
 
 _LOGGER_INITIALIZED = False
@@ -20,10 +22,10 @@ _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def setup_logger(
     level: int = logging.WARNING,
-    log_file: str = None,
+    log_file: Optional[str] = None,
     name: str = "iotbreaker",
-    output_dir: str = None,
-    session_id: str = None,
+    output_dir: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> logging.Logger:
     """
     Configure the root logger for IoTBreaker.
@@ -64,7 +66,7 @@ def setup_logger(
     # S10: Determine audit log path
     resolved_log_file = log_file
     if not resolved_log_file and output_dir:
-        sid = session_id or datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        sid = session_id or utc_now().strftime("%Y%m%d_%H%M%S")
         resolved_log_file = str(Path(output_dir) / f"iotbreaker_{sid}.log")
 
     # S10: Always write a full DEBUG-level audit log to disk

@@ -1,52 +1,42 @@
-# IoTBreaker v4.0.0 — Architecture & Capability Review
+# IoTBreaker v4.0.0 — Architecture
 
-## 1. Architecture Overview
+## 1. Overview
+
+IoTBreaker is a single-process Python 3.9+ command-line tool. `iotbreaker.py` parses arguments and hands them to `core/engine.py`. The engine keeps the session (`devices`, `findings`), enforces an optional CIDR scope, caps threads per module, and writes reports at the end of a run.
+
+There is no background daemon. Optional pieces are a SQLite file (`--db`) and a local Flask API (`--serve`, bound to `127.0.0.1` by default).
 
 ```
-iotbreaker.py (CLI entry-point)
+iotbreaker.py
 │
 ├── core/
-│   ├── engine.py      — Module dispatch, session orchestration, report generation
-│   ├── config.py      — DEFAULTS dict + YAML/ENV loader (yaml.safe_load ✔)
-│   ├── logger.py      — Standard Python logging, optional file handler
-│   └── output.py      — Console formatting (table, finding, progress)
+│   ├── engine.py        Module dispatch, scope, thread caps, report trigger
+│   ├── config.py        Defaults, YAML/JSON file, environment variables
+│   ├── logger.py        stderr logging plus an optional audit log file
+│   ├── output.py        Console tables and finding lines (ANSI, no colorama)
+│   ├── http.py          Shared requests.Session (proxy, TLS verify, User-Agent)
+│   ├── compliance.py    Maps finding titles to control frameworks
+│   ├── engagement.py    Client, operator, dates, authorized CIDRs
+│   ├── database.py      SQLite sessions, devices, findings
+│   ├── api.py           Flask /api/v1 read API and async jobs
+│   └── timeutil.py      Aware UTC timestamps
 │
 └── modules/
-    ├── discovery/     — ARP sweep, TCP probe, UPnP/SSDP, mDNS
-    ├── scanner/       — ThreadPoolExecutor TCP/UDP + banner grab
-    ├── fingerprint/   — OUI lookup, TTL, banner, deep HTTP fingerprint
-    ├── vulnscan/      — 9-protocol vuln checks + NVD CVE correlation
-    ├── bruteforce/    — Telnet, SSH, FTP, HTTP, RTSP, SNMP, MQTT
-    ├── exploit/       — 9 hardcoded PoC CVE handlers
-    ├── firmware/      — binwalk extraction, regex secret scan, entropy
-    ├── reporting/     — JSON / HTML / PDF / TXT multi-format reports
-    └── shodan/        — Shodan API client
+    ├── discovery/discovery.py       Host enumeration (TCP, ARP helper, UPnP, mDNS)
+    ├── discovery/shodan_intel.py    Shodan client (optional API key)
+    ├── scanner/portscan.py          TCP connect scan, optional UDP, banner text
+    ├── fingerprint/fingerprint.py   Hostname, OUI, TTL hint, HTTP/UPnP parsers
+    ├── vulnscan/vulnscan.py         Protocol checks and finding objects
+    ├── vulnscan/cve_lookup.py       NVD API client
+    ├── bruteforce/bruteforce.py     Credential attempts with backoff and masking
+    ├── exploit/exploit.py           Built-in registry plus plugins/exploits loader
+    ├── firmware/firmware.py         Local file typing, hashes, entropy, extraction guard
+    └── reporting/
+        ├── report.py                JSON, HTML (stdlib escaping), text, delta, PDF
+        └── siem.py                  CEF, ECS NDJSON, Splunk HEC
 ```
 
-**Pattern:** single-process Python 3.8+, `ThreadPoolExecutor` for concurrency, all state
-in `Engine` instance (`self.findings`, `self.devices`), results written to disk at session
-end. No daemon, no database, no API server.
-
----
-
-## 2. Capability Inventory
-
-| Module | What it does | Protocols / Tech |
-|---|---|---|
-| `discover` | Layer-2/4/7 device enumeration | ARP, TCP probe, UPnP/SSDP, mDNS |
-| `scan` | Port scan + banner grab | TCP, UDP (root), IoT common port list |
-| `fingerprint` | Device/manufacturer/OS identification | OUI, TTL, HTTP headers, banner regex |
-| `vuln` | Protocol-specific weakness checks | Telnet, SSH, MQTT, HTTP, RTSP, CoAP, UPnP, SNMP, FTP + NVD |
-| `brute` | Credential brute-force | Telnet, SSH, FTP, HTTP, RTSP, SNMP, MQTT |
-| `exploit` | PoC RCE execution | 9 CVEs: Hikvision, Dasan, Huawei, Realtek, NETGEAR, D-Link, Zyxel, TP-Link, QNAP |
-| `firmware` | Static firmware analysis | binwalk, regex secrets, entropy, ELF arch |
-| `shodan` | Internet exposure intel | Shodan API v1 |
-| `cve` | Vulnerability intelligence | NVD API v2.0 |
-| `audit` | Full pipeline orchestration | All of the above |
-
----
-
-## 3. Data Flow
+## 2. Request flow
 
 ```
 CLI args
@@ -54,73 +44,71 @@ CLI args
    ▼
 Engine.run(args)
    │
-   ├─► _run_discover()   ──► DiscoveryModule   ──► self.devices[]
-   ├─► _run_scan()       ──► PortScanner
-   ├─► _run_fingerprint()──► FingerprintModule
-   ├─► _run_vuln()       ──► VulnScanner        ──► self.findings[]
-   ├─► _run_brute()      ──► BruteForceModule   ──► self.findings[]
-   ├─► _run_exploit()    ──► ExploitModule      ──► self.findings[]
-   ├─► _run_firmware()   ──► FirmwareAnalyzer
-   ├─► _run_shodan()     ──► ShodanIntel
-   ├─► _run_cve()        ──► CVELookup
-   └─► _run_audit()      ──► All of the above (pipeline)
-            │
-            ▼
-     _generate_reports()
-            │
-            ├─► ReportGenerator.generate_json()
-            ├─► ReportGenerator.generate_html()
-            ├─► ReportGenerator.generate_pdf()
-            └─► ReportGenerator.generate_txt()
+   ├─ scope check for targeted modules and for discover/audit CIDRs
+   ├─ per-module thread cap
+   │
+   ├─ discover / scan / fingerprint / vuln / brute / exploit
+   ├─ firmware / shodan / cve / audit
+   │
+   ▼
+_generate_reports()
+   ├─ compliance enrichment
+   ├─ optional Database.save_session()
+   └─ JSON / HTML / text / PDF / delta
 ```
 
----
+`audit` runs discovery, then scan and fingerprint, then protocol checks. It does not add a separate transport.
 
-## 4. Configuration System
+## 3. Configuration
 
-Configuration is merged in this priority order (highest wins):
+Highest priority wins:
 
-1. Hardcoded `DEFAULTS` dict in `core/config.py`
-2. YAML or JSON config file (`--config FILE`)
-3. Environment variables (`SHODAN_API_KEY`, `NVD_API_KEY`, `IOTBREAKER_TIMEOUT`, etc.)
-4. CLI arguments (`--timeout`, `--threads`, `--output`, `--format`)
-
-### Key Default Values
+1. Hardcoded `DEFAULTS` in `core/config.py`
+2. YAML or JSON file (`--config`)
+3. Environment variables (`SHODAN_API_KEY`, `NVD_API_KEY`, `IOTBREAKER_*`)
+4. CLI flags (`--timeout`, `--threads`, `--output`, `--format`, `--no-verify`)
 
 | Key | Default | Notes |
 |---|---|---|
-| `timeout` | `5` | TCP connection timeout in seconds |
-| `threads` | `100` | Global thread pool size |
-| `verify_ssl` | `False` | ⚠ See Security Audit |
-| `brute_delay` | `0.0` | ⚠ See Security Audit |
-| `stop_on_success` | `True` | Stop brute-force after first hit |
-| `safe_mode` | `True` | Placeholder — not enforced in code |
-| `report_format` | `"all"` | json + html + pdf + txt |
+| `timeout` | `5` | Seconds |
+| `threads` | `100` | Lowered again by `MODULE_THREAD_CAPS` |
+| `verify_ssl` | `True` | `--no-verify` turns it off and prints a warning |
+| `brute_delay` | `0.5` | `--fast` sets this to `0` |
+| `output_dir` | `./reports` | Created at startup |
+| `report_format` | `"all"` | json, html, and text; PDF if a renderer is installed |
 
----
+## 4. Persistence and API
 
-## 5. IoT Port Coverage
+`core/database.py` opens a SQLite file with tables `sessions`, `devices`, and `findings`. `Database.save_session()` upserts the session row and replaces child rows.
 
-The `IOT_COMMON_PORTS` list in `core/config.py` covers the following protocols:
+`core/api.py` exposes:
 
-| Port | Protocol |
-|---|---|
-| 21 | FTP |
-| 22 | SSH |
-| 23 / 2323 | Telnet |
-| 80 / 81 / 8080 / 8081 | HTTP |
-| 443 / 8443 / 4433 | HTTPS |
-| 161 / 162 | SNMP |
-| 502 | Modbus |
-| 554 | RTSP |
-| 1883 / 8883 | MQTT |
-| 1900 | UPnP/SSDP |
-| 4840 | OPC-UA |
-| 5683 | CoAP |
-| 7547 | TR-069 (CWMP) |
-| 9100 | JetDirect (printers) |
-| 102 | Siemens S7 |
-| 20000 | DNP3 |
-| 44818 | EtherNet/IP |
-| 47808 | BACnet |
-| 37777 | Dahua DVR |
+| Method | Path | Role |
+|---|---|---|
+| GET | `/api/v1/health` | Liveness |
+| GET | `/api/v1/sessions` | List stored sessions (503 without `--db`) |
+| GET | `/api/v1/sessions/<id>` | One session |
+| GET | `/api/v1/findings` | Filter stored findings |
+| POST | `/api/v1/scan` | Queue a module job |
+| GET | `/api/v1/scan/<job_id>` | Job status |
+
+Jobs call `Engine.run` in a background thread. The unit tests patch that call.
+
+## 5. Scope
+
+`Engine.load_scope()` reads one CIDR per line. With a scope loaded:
+
+- An IP is allowed only when it belongs to a scope network.
+- A CIDR is allowed only when it is a subnet of a scope network. A wider prefix is rejected instead of being treated as a hostname.
+- A hostname is still allowed, because it is not an address.
+- `discover` and `audit` apply the same CIDR rule to `--network` before any module starts.
+
+With no scope file and no engagement CIDRs, targets are not filtered.
+
+## 6. Tests
+
+`tests/` is pytest. `conftest.py` puts the repository root on `sys.path`. External I/O in the suite is mocked or replaced with local files. GitHub Actions workflow `.github/workflows/tests.yml` installs `.[dev]` and runs ruff, mypy, and pytest. It does not run the CLI against a network.
+
+## 7. Ports of interest
+
+`IOT_COMMON_PORTS` in `core/config.py` lists the TCP/UDP ports the default scan set knows about, including FTP, SSH, Telnet, HTTP(S), SNMP, Modbus, RTSP, MQTT, UPnP, CoAP, and several industrial ports. That list is data for the scanner. It is not a procedure.

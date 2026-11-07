@@ -17,11 +17,8 @@ Author: IoTBreaker Project
 import argparse
 import sys
 import os
-import json
 import logging
-import time
 import signal
-from datetime import datetime
 from pathlib import Path
 
 # Ensure the project root is in the Python path
@@ -501,7 +498,6 @@ def main():
     engine = Engine(config)
 
     # S10: Reconfigure logger to always write audit log to output directory
-    from core.logger import _LOGGER_INITIALIZED
     import core.logger as _core_logger
     _core_logger._LOGGER_INITIALIZED = False
     setup_logger(

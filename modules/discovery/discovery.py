@@ -12,15 +12,12 @@ Multi-method IoT device discovery:
 """
 
 import socket
-import struct
 import time
 import threading
-import queue
 import subprocess
 import ipaddress
 import re
-import json
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from core.logger import get_logger

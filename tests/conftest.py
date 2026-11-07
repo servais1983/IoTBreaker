@@ -3,7 +3,6 @@ Shared pytest fixtures and configuration for the IoTBreaker test suite.
 """
 import os
 import sys
-import tempfile
 import pytest
 
 # Ensure project root is on sys.path regardless of cwd

@@ -8,12 +8,9 @@ Covers:
 - Environment variable loading
 - Config.__repr__ masks sensitive keys
 """
-import os
 import json
 import warnings
-import tempfile
 import pytest
-import yaml
 
 from core.config import Config, DEFAULTS
 

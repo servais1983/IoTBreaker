@@ -9,7 +9,6 @@ Covers:
 - enrich_finding_compliance returns same dict
 - All framework values are non-empty lists
 """
-import pytest
 
 from core.compliance import (
     COMPLIANCE_MAP,

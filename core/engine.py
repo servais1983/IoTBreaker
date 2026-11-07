@@ -7,18 +7,15 @@ Central orchestration layer that dispatches CLI arguments to the
 appropriate modules and manages the full audit pipeline.
 """
 
-import os
-import sys
-import json
 import time
 import ipaddress
-from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional, Union
 
 from .config import Config
 from .logger import get_logger
 from .output import Console
+from .timeutil import utc_now
 
 logger = get_logger(__name__)
 
@@ -47,7 +44,7 @@ class Engine:
 
     def __init__(self, config: Config):
         self.config = config
-        self.session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        self.session_id = utc_now().strftime("%Y%m%d_%H%M%S")
         self.findings: List[Dict] = []
         self.devices: List[Dict] = []
         self.start_time = time.time()
@@ -86,19 +83,52 @@ class Engine:
 
     def _is_in_scope(self, target: str) -> bool:
         """
-        S3: Return True if target is within an authorized scope network.
-        If no scope is defined, all targets are permitted (with a warning).
+        Return True if target is within an authorized scope network.
+
+        A single address must fall inside a scope network. A CIDR must be a
+        subnet of a scope network, so a wider range cannot slip through as a
+        hostname. Hostnames still pass through because they are not addresses.
+        If no scope is defined, every target is permitted.
         """
         if not self.scope_networks:
             return True
+        text = (target or "").strip()
+        if not text:
+            return False
         try:
-            addr = ipaddress.ip_address(target)
+            addr = ipaddress.ip_address(text)
         except ValueError:
-            return True  # hostnames pass through
-        for net in self.scope_networks:
-            if addr in net:
+            try:
+                network = ipaddress.ip_network(text, strict=False)
+            except ValueError:
                 return True
-        return False
+            return self._network_in_scope(network)
+        return any(
+            addr.version == net.version and addr in net
+            for net in self.scope_networks
+        )
+
+    def _network_in_scope(
+        self,
+        network: Union[ipaddress.IPv4Network, ipaddress.IPv6Network],
+    ) -> bool:
+        """Return True when ``network`` is contained by an authorized scope."""
+        if not self.scope_networks:
+            return True
+        return any(
+            network.version == scope.version and network.subnet_of(scope)
+            for scope in self.scope_networks
+        )
+
+    def _cidr_text_in_scope(self, network: str) -> bool:
+        """Return True when a CIDR string is inside the authorized scope."""
+        if not self.scope_networks:
+            return True
+        try:
+            parsed = ipaddress.ip_network(network, strict=False)
+        except ValueError:
+            return False
+        return self._network_in_scope(parsed)
 
     def _apply_module_thread_cap(self, module: str):
         """
@@ -168,6 +198,10 @@ class Engine:
     # ------------------------------------------------------------------ #
 
     def _run_discover(self, args) -> bool:
+        network = getattr(args, "network", "")
+        if not self._cidr_text_in_scope(network):
+            Console.error(f"[SCOPE] {network} is outside the authorized scope. Skipping.")
+            return False
         from modules.discovery.discovery import DiscoveryModule
         mod = DiscoveryModule(self.config)
         self.devices = mod.run(
@@ -484,6 +518,14 @@ class Engine:
 
     def _run_audit(self, args) -> bool:
         """Full automated audit pipeline."""
+        network = getattr(args, "network", "")
+        if not self._cidr_text_in_scope(network):
+            Console.error(f"[SCOPE] {network} is outside the authorized scope. Skipping.")
+            return False
+        single = getattr(args, "target", None)
+        if single and not self._is_in_scope(single):
+            Console.error(f"[SCOPE] {single} is outside the authorized scope. Skipping.")
+            return False
         Console.section("FULL AUDIT PIPELINE")
         profile = getattr(args, "profile", "standard")
         Console.info(f"Audit profile: {profile.upper()}")

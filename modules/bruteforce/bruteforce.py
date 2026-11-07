@@ -19,10 +19,9 @@ structured result output.
 import socket
 import time
 import ftplib
-import requests
 import threading
-from typing import List, Dict, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib3
+from typing import List, Dict, Tuple
 from pathlib import Path
 
 from core.logger import get_logger
@@ -31,8 +30,6 @@ from core.config import Config
 from core.http import make_session
 
 logger = get_logger(__name__)
-
-import urllib3
 
 
 # Default wordlist paths
@@ -346,7 +343,6 @@ class BruteForceModule:
         """Test RTSP digest authentication."""
         try:
             from requests.auth import HTTPDigestAuth
-            url = f"rtsp://{target}:{port}/"
             # Use HTTP as a proxy for digest auth testing
             resp = self.session.get(
                 f"http://{target}:{port}/",

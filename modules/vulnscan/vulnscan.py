@@ -23,7 +23,8 @@ import time
 import re
 import requests
 import threading
-from typing import List, Dict, Optional, Tuple
+import urllib3
+from typing import List, Dict, Optional
 from urllib.parse import urljoin
 
 from core.logger import get_logger
@@ -33,8 +34,6 @@ from .cve_lookup import CVELookup
 from core.http import make_session
 
 logger = get_logger(__name__)
-
-import urllib3
 
 
 # Default credential pairs (user:password) for IoT devices
@@ -335,7 +334,7 @@ class VulnScanner:
                             return Finding(
                                 title="Telnet Default Credentials",
                                 severity="CRITICAL",
-                                description=f"Telnet service accepts default credentials.",
+                                description="Telnet service accepts default credentials.",
                                 target=target,
                                 port=port,
                                 protocol="telnet",
@@ -481,7 +480,7 @@ class VulnScanner:
                     client.disconnect()
 
                     if subscribed.is_set():
-                        evidence = f"Connected anonymously and subscribed to '#' wildcard"
+                        evidence = "Connected anonymously and subscribed to '#' wildcard"
                         if messages:
                             evidence += f" | Intercepted {len(messages)} message(s)"
                         return Finding(
@@ -542,7 +541,7 @@ class VulnScanner:
             ctx_no_verify.verify_mode = ssl.CERT_NONE
             with _socket.create_connection((target, port), timeout=self.timeout) as raw:
                 with ctx_no_verify.wrap_socket(raw, server_hostname=target) as tls_sock:
-                    cert = tls_sock.getpeercert(binary_form=True)
+                    tls_sock.getpeercert(binary_form=True)
                     # Try to validate with default context to confirm it would fail
                     try:
                         ctx_strict = ssl.create_default_context()
@@ -595,7 +594,7 @@ class VulnScanner:
                                 cvss_score=5.9,
                                 cwe_id="CWE-326",
                                 evidence=f"Negotiated protocol: {neg}",
-                                remediation=f"Configure the MQTT broker to reject TLS versions below 1.2."
+                                remediation="Configure the MQTT broker to reject TLS versions below 1.2."
                             ))
             except Exception:
                 pass  # Version rejected — expected good behavior

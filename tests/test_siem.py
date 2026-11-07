@@ -10,14 +10,11 @@ Covers:
 - _cef_escape handles special characters
 """
 import json
-import socket
-import threading
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from modules.reporting.siem import SiemExporter, _cef_escape, _finding_flat
-from core.config import Config
 
 
 @pytest.fixture
