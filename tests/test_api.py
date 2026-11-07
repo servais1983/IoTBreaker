@@ -17,9 +17,8 @@ import json
 import time
 import types
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from core.config import Config
 
 
 # ------------------------------------------------------------------ #
@@ -28,7 +27,7 @@ from core.config import Config
 flask = pytest.importorskip("flask", reason="flask not installed — skip API tests")
 
 
-from core.api import create_app
+from core.api import create_app  # noqa: E402  — after flask importorskip
 
 
 @pytest.fixture

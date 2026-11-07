@@ -19,11 +19,9 @@ Reports include:
 
 import json
 import html
-import os
-import re
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List
 
 from core.logger import get_logger
 from core.output import Console

@@ -17,19 +17,16 @@ using multiple techniques:
 
 import socket
 import re
-import struct
 import requests
+import urllib3
 import xml.etree.ElementTree as ET
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional
 
 from core.logger import get_logger
-from core.output import Console
 from core.config import Config
 from core.http import make_session
 
 logger = get_logger(__name__)
-
-import urllib3
 
 
 # TTL-based OS fingerprinting

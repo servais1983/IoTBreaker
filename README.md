@@ -18,7 +18,7 @@
 [![Protocols](https://img.shields.io/badge/protocols-10%2B-orange?style=flat-square)](https://github.com/servais1983/IoTBreaker)
 [![CVSS](https://img.shields.io/badge/scoring-CVSS%20v3.1-blueviolet?style=flat-square)](https://www.first.org/cvss/)
 [![NVD](https://img.shields.io/badge/CVE%20lookup-NVD%20API%20v2.0-blue?style=flat-square)](https://nvd.nist.gov/)
-[![Tests](https://img.shields.io/badge/tests-191%20passed-brightgreen?style=flat-square)](tests/)
+[![Tests](https://github.com/servais1983/IoTBreaker/actions/workflows/tests.yml/badge.svg)](https://github.com/servais1983/IoTBreaker/actions/workflows/tests.yml)
 
 </div>
 
@@ -89,7 +89,7 @@ IoTBreaker/
 │   ├── web_paths.txt           # Common IoT web paths
 │   ├── vendors/                # Per-vendor credential lists (Hikvision, Dahua, …)
 │   └── protocols/              # Protocol-specific lists (SNMP communities, MQTT topics)
-├── tests/                      # pytest test suite (191 tests, all passing)
+├── tests/                      # pytest suite (offline, external calls mocked)
 ├── docs/                       # Architecture, roadmap, security audit, production gaps
 └── reports/                    # Output directory for generated reports
 ```
@@ -187,8 +187,12 @@ source .venv/bin/activate
 # On Windows (cmd):
 # .venv\Scripts\activate.bat
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install the package and test/lint tools
+pip install -e ".[dev]"
+
+# Runtime only (no pytest, ruff, or mypy):
+# pip install -e .
+# or: pip install -r requirements.txt
 
 # Optional: configure API keys
 cp env.example .env
@@ -197,20 +201,37 @@ cp env.example .env
 
 > **Important:** The virtual environment must be activated every time you open a new terminal before running IoTBreaker. You will know it is active when you see `(.venv)` at the start of your prompt. To deactivate it, run `deactivate`.
 
-**Dependencies overview:**
+**Python dependencies** (declared in `pyproject.toml`; `requirements.txt` lists the same runtime set):
 
 | Package | Purpose |
 |---|---|
-| `requests` | HTTP client for API calls and web checks |
-| `scapy` | ARP/ICMP/TCP packet crafting for discovery |
-| `paramiko` | SSH protocol interaction |
-| `paho-mqtt` | MQTT client for broker checks |
-| `python-nmap` | nmap subprocess wrapper (optional, enhances scan accuracy) |
-| `shodan` | Official Shodan Python client |
-| `pyyaml` | YAML configuration file parsing |
-| `fpdf2` | PDF report generation |
-| `jinja2` | HTML report templating |
-| `colorama` | Cross-platform terminal color output |
+| `requests`, `urllib3` | HTTP client and TLS warning control |
+| `pyyaml` | YAML configuration files |
+| `flask` | Local REST API (`--serve`) |
+| `paramiko` | SSH client used by credential checks |
+| `paho-mqtt` | MQTT client used by protocol checks |
+| `shodan` | Shodan API client |
+
+HTML reports are built with the standard library (`html` escaping). They do not use Jinja2. Console color is ANSI in `core/output.py`. The port scanner does not import `python-nmap` or call the `nmap` binary. Discovery does not import Scapy; ARP discovery shells out to `arp-scan` when that program exists, then falls back to `/proc/net/arp`. PDF output tries WeasyPrint, then `wkhtmltopdf`.
+
+Optional extras:
+
+| Extra | Install | Python packages |
+|---|---|---|
+| `dev` | `pip install -e ".[dev]"` | pytest, ruff, mypy, Flask |
+| `reporting` | `pip install -e ".[reporting]"` | WeasyPrint |
+| `firmware` | `pip install -e ".[firmware]"` | python-magic |
+
+**System libraries** (not installed by pip; not required to run the test suite):
+
+| Software | When it is used | Debian/Ubuntu packages |
+|---|---|---|
+| WeasyPrint native stack | PDF reports (`reporting` extra) | `libpango-1.0-0`, `libcairo2`, `libgdk-pixbuf-2.0-0`, `libffi8`, `shared-mime-info`, a font package such as `fonts-liberation` |
+| libmagic | `firmware` extra (`python-magic`) | `libmagic1` |
+| binwalk | Firmware extraction, if `--extract` is left on | `binwalk` |
+| wkhtmltopdf | PDF fallback when WeasyPrint cannot render | `wkhtmltopdf` |
+| arp-scan | Optional ARP discovery | `arp-scan` |
+| nmap | Not invoked by this codebase | Install `nmap` only for separate operator workflows. The scanner and the CI job do not call it. |
 
 ---
 
@@ -448,14 +469,16 @@ curl http://localhost:5000/api/v1/sessions/<session_id>
 
 ## Testing
 
-The full test suite runs with pytest and requires no network access (all external calls are mocked):
+The suite is pytest. It does not contact a network: HTTP, syslog, NVD, and module probes are mocked or replaced with local files. GitHub Actions (`.github/workflows/tests.yml`) runs the same commands on every push and pull request: install `.[dev]`, then ruff, mypy, and pytest. The workflow does not run a live scan.
 
 ```bash
-pip install pytest flask
+pip install -e ".[dev]"
+ruff check .
+mypy
 python -m pytest tests/ -v
 ```
 
-191 tests cover all core modules, reporting formats, SIEM exporters, brute-force backoff logic, exploit registry and plugin loader, engine scope/thread-cap logic, and all REST API endpoints.
+The suite is 239 tests. It covers configuration, the engine (scope and thread caps), engagement, SQLite, the REST API, reporting and SIEM export, the CLI parser, and the discovery, scan, fingerprint, protocol-check, and firmware interfaces.
 
 ---
 
@@ -475,7 +498,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 <div align="center">
 
-**IoTBreaker v4.0.0** — Built for security professionals, by security professionals. 191 tests. Zero known security regressions.
+**IoTBreaker v4.0.0** — Authorized assessments only. Offline tests run in GitHub Actions.
 
 [GitHub](https://github.com/servais1983/IoTBreaker) &nbsp;|&nbsp; [Issues](https://github.com/servais1983/IoTBreaker/issues) &nbsp;|&nbsp; [Releases](https://github.com/servais1983/IoTBreaker/releases)
 

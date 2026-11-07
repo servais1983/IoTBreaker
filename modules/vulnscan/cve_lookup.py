@@ -12,8 +12,6 @@ API documentation: https://nvd.nist.gov/developers/vulnerabilities
 import time
 import requests
 from typing import Dict, List, Optional, Any
-from datetime import datetime
-
 from core.logger import get_logger
 from core.config import Config
 
@@ -27,24 +25,29 @@ NVD_CVE_BASE = "https://services.nvd.nist.gov/rest/json/cve/2.0/{cve_id}"
 REQUEST_DELAY_NO_KEY = 6.0
 REQUEST_DELAY_WITH_KEY = 0.6
 
-# CVSS v3 severity thresholds
-CVSS_SEVERITY = {
-    (9.0, 10.0): "CRITICAL",
-    (7.0, 8.9):  "HIGH",
-    (4.0, 6.9):  "MEDIUM",
-    (0.1, 3.9):  "LOW",
-    (0.0, 0.0):  "NONE",
-}
-
-
 def cvss_to_severity(score: float) -> str:
-    """Convert a CVSS v3 score to a severity label."""
+    """Convert a CVSS v3 base score to a severity label.
+
+    Thresholds follow the CVSS v3 qualitative scale. Intermediate values
+    such as 8.95 stay HIGH; only scores at or above 9.0 are CRITICAL.
+    """
     if score is None:
         return "UNKNOWN"
-    for (low, high), label in CVSS_SEVERITY.items():
-        if low <= score <= high:
-            return label
-    return "UNKNOWN"
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return "UNKNOWN"
+    if value < 0.0 or value > 10.0:
+        return "UNKNOWN"
+    if value == 0.0:
+        return "NONE"
+    if value < 4.0:
+        return "LOW"
+    if value < 7.0:
+        return "MEDIUM"
+    if value < 9.0:
+        return "HIGH"
+    return "CRITICAL"
 
 
 class CVELookup:

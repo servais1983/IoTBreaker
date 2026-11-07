@@ -1,6 +1,88 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iotbreaker"
+version = "4.0.0"
+description = "IoT security assessment framework for authorized engagements"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "IoTBreaker Project" }]
+keywords = ["iot", "security", "assessment"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.31.0",
+    "pyyaml>=6.0.1",
+    "urllib3>=1.26",
+    "flask>=3.0",
+    "paho-mqtt>=1.6.1",
+    "paramiko>=3.4.0",
+    "shodan>=1.31.0",
+]
+
+[project.optional-dependencies]
+reporting = [
+    "weasyprint>=60.0",
+]
+firmware = [
+    "python-magic>=0.4.27",
+]
+dev = [
+    "pytest>=8.0",
+    "flask>=3.0",
+    "ruff>=0.6",
+    "mypy>=1.13,<2",
+    "types-PyYAML",
+    "types-requests",
+]
+
+[project.scripts]
+iotbreaker = "iotbreaker:main"
+
+[tool.setuptools]
+py-modules = ["iotbreaker"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "modules*"]
+exclude = ["tests*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+src = ["core", "modules", "tests", "iotbreaker.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Exploit handlers stay out of mechanical lint edits.
+"modules/exploit/**" = ["E402", "F401", "F541", "F841"]
+# conftest inserts the repo root on sys.path before importing the package.
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+warn_unused_configs = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+files = ["core/timeutil.py", "core/http.py", "core/config.py", "core/logger.py"]
+follow_imports = "silent"

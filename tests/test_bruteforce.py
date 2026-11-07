@@ -11,14 +11,9 @@ Covers:
 - _attack_http returns False on 401
 - Credential masking: password hidden unless reveal_creds=True
 """
-import time
-import types
-import pytest
-from unittest.mock import MagicMock, patch, call
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from modules.bruteforce.bruteforce import BruteForceModule, load_wordlist
-from core.config import Config
 
 
 # ------------------------------------------------------------------ #
@@ -121,7 +116,7 @@ class TestAttemptWithBackoff:
         resp_200.text = "Welcome"
         fn = MagicMock(side_effect=[resp_429, resp_200])
         with patch("time.sleep") as mock_sleep:
-            result = bf._attempt_with_backoff(fn, max_retries=3)
+            bf._attempt_with_backoff(fn, max_retries=3)
         # Should have slept at least once due to 429
         assert mock_sleep.called
 

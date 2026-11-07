@@ -17,11 +17,11 @@ findings  : vulnerability findings linked to a session
 import json
 import sqlite3
 import threading
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
+from core.timeutil import utc_from_timestamp, utc_now
 
 logger = get_logger(__name__)
 
@@ -130,7 +130,7 @@ class Database:
         Call this after engine.run() completes.
         """
         conn = self._conn()
-        now  = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         eng_meta = getattr(engine, "engagement", None)
         client   = eng_meta.client   if eng_meta else ""
@@ -153,7 +153,7 @@ class Database:
                VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (
                 engine.session_id,
-                datetime.utcfromtimestamp(engine.start_time).isoformat(),
+                utc_from_timestamp(engine.start_time).isoformat(),
                 now,
                 client, operator, sow_ref,
                 risk_score,

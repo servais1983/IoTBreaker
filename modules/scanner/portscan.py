@@ -11,11 +11,9 @@ Features:
 """
 
 import socket
-import struct
-import time
 import re
 import threading
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from core.logger import get_logger
@@ -161,7 +159,7 @@ class PortScanner:
             for future in as_completed(futures):
                 completed += 1
                 if completed % 500 == 0:
-                    Console.progress(completed, len(ports), f"ports scanned")
+                    Console.progress(completed, len(ports), "ports scanned")
                 result = future.result()
                 if result:
                     with lock:

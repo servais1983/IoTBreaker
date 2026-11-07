@@ -13,14 +13,13 @@ Static analysis of IoT firmware images:
   - Binary analysis for known vulnerable patterns
 """
 
-import os
 import re
 import hashlib
 import subprocess
 import struct
 import math
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 from core.logger import get_logger
 from core.output import Console
@@ -307,6 +306,19 @@ class FirmwareAnalyzer:
         except Exception:
             return 0.0
 
+    @staticmethod
+    def _is_inside(path: Path, root: Path) -> bool:
+        """Return True when ``path`` resolves inside ``root``.
+
+        ``Path.relative_to`` rejects both sibling directories that share a
+        string prefix and paths that escape through a symlink.
+        """
+        try:
+            path.resolve().relative_to(root.resolve())
+        except (OSError, ValueError):
+            return False
+        return True
+
     def _human_size(self, size: int) -> str:
         """Convert bytes to human-readable size."""
         for unit in ["B", "KB", "MB", "GB"]:
@@ -322,7 +334,7 @@ class FirmwareAnalyzer:
     def _extract_firmware(self, path: Path) -> Optional[Path]:
         """Extract firmware filesystem using binwalk."""
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["binwalk", "--check"],
                 capture_output=True, timeout=5
             )
@@ -343,16 +355,17 @@ class FirmwareAnalyzer:
             )
 
             if extract_dir.exists() and any(extract_dir.iterdir()):
-                # S7: Post-extraction path traversal validation
+                # S7: Post-extraction path traversal validation.
+                # A string prefix check treats ".../out.extracted-evil" as inside
+                # ".../out.extracted". Compare resolved paths instead.
                 safe_root = extract_dir.resolve()
                 for extracted_file in extract_dir.rglob("*"):
                     try:
-                        resolved = extracted_file.resolve()
-                        if not str(resolved).startswith(str(safe_root)):
+                        if not self._is_inside(extracted_file, safe_root):
                             Console.warning(
                                 f"[S7] Path traversal in firmware: {extracted_file} — removing"
                             )
-                            if extracted_file.is_file():
+                            if extracted_file.is_symlink() or extracted_file.is_file():
                                 extracted_file.unlink(missing_ok=True)
                     except Exception:
                         pass

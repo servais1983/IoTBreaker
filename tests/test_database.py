@@ -16,7 +16,6 @@ import types
 import pytest
 
 from core.database import Database
-from core.config import Config
 
 
 def _make_engine(session_id: str, findings=None, devices=None):
@@ -64,6 +63,8 @@ class TestSaveSession:
         assert row["session_id"] == "sess_001"
         assert row["finding_count"] == 1
         assert row["device_count"] == 1
+        assert row["started_at"].endswith("+00:00")
+        assert row["finished_at"].endswith("+00:00")
 
     def test_device_row_saved(self, db, sample_device):
         eng = _make_engine("sess_002", devices=[sample_device])

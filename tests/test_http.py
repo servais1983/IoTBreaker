@@ -8,11 +8,9 @@ Covers:
 - User-Agent header is set
 - No proxy when http_proxy is empty
 """
-import pytest
 import requests
 
 from core.http import make_session
-from core.config import Config
 
 
 class TestMakeSession:

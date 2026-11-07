@@ -22,14 +22,12 @@ POST /api/v1/scan               — run a module asynchronously
 GET  /api/v1/scan/<job_id>      — poll scan job status
 """
 
-import json
 import threading
 import uuid
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 from core.logger import get_logger
+from core.timeutil import utc_now
 
 logger = get_logger(__name__)
 
@@ -47,7 +45,7 @@ def _job_create(module: str, args_dict: dict) -> str:
             "id":         job_id,
             "module":     module,
             "status":     "queued",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": utc_now().isoformat(),
             "finished_at": None,
             "findings":   [],
             "devices":    [],
@@ -78,7 +76,7 @@ def _job_run(job_id: str, module: str, request_data: dict, config):
 
         with _jobs_lock:
             _jobs[job_id]["status"]      = "completed"
-            _jobs[job_id]["finished_at"] = datetime.utcnow().isoformat()
+            _jobs[job_id]["finished_at"] = utc_now().isoformat()
             _jobs[job_id]["findings"]    = engine.findings
             _jobs[job_id]["devices"]     = engine.devices
 
@@ -86,7 +84,7 @@ def _job_run(job_id: str, module: str, request_data: dict, config):
         logger.exception(f"API job {job_id} failed")
         with _jobs_lock:
             _jobs[job_id]["status"]      = "failed"
-            _jobs[job_id]["finished_at"] = datetime.utcnow().isoformat()
+            _jobs[job_id]["finished_at"] = utc_now().isoformat()
             _jobs[job_id]["error"]       = str(e)
 
 
